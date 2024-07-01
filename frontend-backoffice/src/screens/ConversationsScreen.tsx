@@ -10,11 +10,18 @@ export function ConversationsScreen() {
   // const user = useAuthenticatedUser()
   const accessToken = useAccessToken()
 
+  //useEffect for the page || skip var
+
+
   const query = useQuery({
     queryKey: ['conversations'],
     queryFn: async () => {
       const response = await api.get('/conversations', {
-        headers: { Authorization: `Bearer ${accessToken}` }
+        headers: { Authorization: `Bearer ${accessToken}` },
+        params: {
+          skip: 0, //skip on the table
+          take: 25, //number of rows showed, dynamically?
+        }
       })
 
       return response.data as {

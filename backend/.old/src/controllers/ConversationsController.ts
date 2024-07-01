@@ -14,10 +14,19 @@ export class ConversationsController {
    * GET /conversations
    */
   public async find(req: Request, res: Response) {
+    const {skip, take} = req.query;
+    
+    const userId = req.token.sub.split(':')[1];
+
     const [conversations, count] = await this.repository.findAndCount({
       relations: { consumer: true },
-      take: 25,
-      skip: 0
+      where:{
+        user:{
+          id: userId,
+        }
+      },
+      take: Number(take),
+      skip: Number(skip),
     })
 
     res.json({ count, conversations })

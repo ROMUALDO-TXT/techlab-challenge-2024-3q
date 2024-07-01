@@ -11,9 +11,11 @@ export class UsersController {
    * GET /users
    */
   public async find(req: Request, res: Response) {
+    const {skip, take} = req.query;
+
     const [users, count] = await this.repository.findAndCount({
-      take: 25,
-      skip: 0
+      take: Number(take),
+      skip: Number(skip),
     })
 
     res.json({ count, users })
@@ -32,10 +34,87 @@ export class UsersController {
     return res.json(user)
   }
 
+  public async findByUsername(req: Request, res: Response){
+    const user = await this.repository.findOne({
+      where: { 
+        username: req.params.username 
+      },
+      select:{
+        username: true,
+        email: true,
+        id: true,
+      }
+    })
+    
+    return res.json(user)
+  }
+
+  public async findByEmail(req: Request, res: Response){
+    const user = await this.repository.findOne({
+      where: { 
+        email: req.params.email 
+      },
+      select:{
+        username: true,
+        email: true,
+        id: true,
+      }
+    })
+    
+    return res.json(user)
+  }
+
+  public async create(req: Request, res: Response){
+    const {
+      username,
+      email,
+      password,
+      profile
+    } = req.body;
+
+    //pswd hashing
+
+    const user = await this.repository.save(this.repository.create({
+      username,
+      email,
+      password,
+      profile
+    }))
+
+    res.status(201)
+      .header('Location', `/users/${user.id}`)
+      .json(user)
+  }
+
   /**
    * PUT /users
    */
   public async save(req: Request, res: Response) {
+    const {
+      id,
+      username,
+      email,
+      password,
+      profile
+    } = req.body;
+
+    let userToBeSaved = this.repository.create({
+      username,
+      email,
+      password,
+      profile
+    }); 
+
+    if(id){
+      const userExists = await this.repository.findOne({
+        where:{
+          id: id
+        }
+      })
+
+      if(userExists) userExists;
+    }
+
     const user = await this.repository.save(req.body)
 
     res.status(201)
