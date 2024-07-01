@@ -21,6 +21,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     ],
     controllers: [AuthController],
     providers: [AuthService, JwtStrategy, EmailValidation, CpfValidation],
-    exports:[CpfValidation],
+    exports:[CpfValidation, EmailValidation, JwtModule],
 })
 export class AuthModule { }

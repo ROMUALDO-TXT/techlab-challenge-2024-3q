@@ -10,6 +10,9 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { TimingMiddleware } from './domain/middlewares/timmingMiddleware';
+import { Conversation } from './domain/entities/Conversation';
+import { ConversationMessage } from './domain/entities/ConversationMessage';
+import { Consumer } from './domain/entities/Consumer';
 
 @Module({
   imports: [
@@ -25,7 +28,10 @@ import { TimingMiddleware } from './domain/middlewares/timmingMiddleware';
       password: process.env.DATABASE_PASS,
       database: process.env.DATABASE_NAME,
       entities: [
-        User
+        User,
+        Consumer,
+        Conversation,
+        ConversationMessage
       ],
       logging: true,
       synchronize: false,
@@ -53,8 +59,8 @@ import { TimingMiddleware } from './domain/middlewares/timmingMiddleware';
 
       ],
     }),
+    AuthModule,
     UsersModule, 
-    AuthModule
   ],
   providers: [
     {
