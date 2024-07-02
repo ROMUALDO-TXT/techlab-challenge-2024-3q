@@ -2,12 +2,13 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
 import { Permissions } from 'src/auth/decorators/roles.decorator';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { SearchUserDto } from './dto/search-user.dto';
 
+@ApiTags("Usuarios")
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
@@ -65,7 +66,7 @@ export class UsersController {
   }
 
   @Public()
-  @Post('/search')
+  @Get('')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'

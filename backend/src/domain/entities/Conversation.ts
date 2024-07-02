@@ -25,6 +25,9 @@ export class Conversation {
   @CreateDateColumn()
   public createdAt!: Date
 
+  @CreateDateColumn()
+  public UpdatedAt!: Date
+
   @DeleteDateColumn()
   public deletedAt!: Date | null
 }

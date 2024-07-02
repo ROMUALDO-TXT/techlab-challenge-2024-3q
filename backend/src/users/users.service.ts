@@ -148,7 +148,7 @@ export class UsersService extends ServiceBaseClass {
         }
       });
 
-      if (!data) throw new NotFoundException('Usuario não encontrado');
+      if (!data) throw new NotFoundException('User not found');
 
       return {
         status: 200,
@@ -187,7 +187,7 @@ export class UsersService extends ServiceBaseClass {
         }
       });
 
-      if (!data) throw new NotFoundException('Usuario não encontrado');
+      if (!data) throw new NotFoundException('User not found');
 
       return {
         status: 200,
@@ -219,7 +219,7 @@ export class UsersService extends ServiceBaseClass {
       }
     })
 
-    if (!userExists) throw new NotFoundException('Usuário não encontrado');
+    if (!userExists) throw new NotFoundException('User not found');
 
     let renewToken = false;
     if (user.id === userExists.id) renewToken = true;
@@ -257,7 +257,7 @@ export class UsersService extends ServiceBaseClass {
       delete userExists.password;
 
       if (result) {
-        this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: Antigo: ${JSON.stringify(userExists)} | Novo: ${JSON.stringify(result)}`);
+        this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: old: ${JSON.stringify(userExists)} | new: ${JSON.stringify(result)}`);
       }
     } catch (err) {
 
@@ -280,7 +280,7 @@ export class UsersService extends ServiceBaseClass {
       }
     })
 
-    if (!userExists) throw new NotFoundException('Usuário não encontrado');
+    if (!userExists) throw new NotFoundException('User not found');
 
     const queryRunner = this.dataSource.createQueryRunner();
 
@@ -295,7 +295,7 @@ export class UsersService extends ServiceBaseClass {
       })
 
       if (result.affected == 0) {
-        throw new InternalServerErrorException('Não foi possivel deletar o registro')
+        throw new InternalServerErrorException()
       }
 
       await queryRunner.commitTransaction();

@@ -13,6 +13,8 @@ import { TimingMiddleware } from './domain/middlewares/timmingMiddleware';
 import { Conversation } from './domain/entities/Conversation';
 import { ConversationMessage } from './domain/entities/ConversationMessage';
 import { Consumer } from './domain/entities/Consumer';
+import { ConversationsModule } from './conversations/conversations.module';
+import { ConsumersModule } from './consumers/consumers.module';
 
 @Module({
   imports: [
@@ -60,7 +62,9 @@ import { Consumer } from './domain/entities/Consumer';
       ],
     }),
     AuthModule,
-    UsersModule, 
+    UsersModule,
+    ConversationsModule,
+    ConsumersModule, 
   ],
   providers: [
     {
