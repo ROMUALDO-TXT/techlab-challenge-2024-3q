@@ -1,6 +1,6 @@
 import { Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateAvailabilityDto, UpdateUserDto } from './dto/update-user.dto';
 import { ServiceBaseClass } from 'src/domain/helpers/service.class';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { DataSource, UpdateResult } from 'typeorm';
@@ -41,6 +41,7 @@ export class UsersService extends ServiceBaseClass {
         email: createUserDto.email,
         password: pswd,
         profile: profileExists,
+        available: true,
       });
 
       const result = await this.dataSource.manager.save(User, user);
@@ -94,7 +95,7 @@ export class UsersService extends ServiceBaseClass {
         }
       }
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service | infoUser]: ${JSON.stringify(error)}`);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,
@@ -119,7 +120,7 @@ export class UsersService extends ServiceBaseClass {
           },
           email: true,
         },
-        relations:{
+        relations: {
           profile: true,
         },
         skip: (page - 1) * limit,
@@ -139,7 +140,7 @@ export class UsersService extends ServiceBaseClass {
         }
       }
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service | infoUser]: ${JSON.stringify(error)}`);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,
@@ -184,7 +185,7 @@ export class UsersService extends ServiceBaseClass {
         }
       }
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service | infoUser]: ${JSON.stringify(error)}`);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,
@@ -298,6 +299,28 @@ export class UsersService extends ServiceBaseClass {
     }
     if (renewToken) return { token, result };
     return { result }
+  }
+
+  async updateAvailability({ user }: RequestWithUser, { available }: UpdateAvailabilityDto) {
+    try {
+      const result = await this.dataSource.manager.update(User, {
+        id: user.id,
+      }, {
+        available: available
+      });
+
+
+      if (result.affected > 0) {
+        this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]`);
+      }
+    } catch (err) {
+
+      if (err.status == 404) throw new NotFoundException(err.message);
+      if (err) {
+        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
+        throw new Error(err);
+      }
+    }
   }
 
   async remove(id: string) {

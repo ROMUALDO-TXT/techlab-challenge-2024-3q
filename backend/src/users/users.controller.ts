@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Req, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateAvailabilityDto, UpdateUserDto } from './dto/update-user.dto';
 import { ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
 import { Permissions } from 'src/auth/decorators/roles.decorator';
@@ -122,6 +122,26 @@ export class UsersController {
   })
   async update(@Req() request: RequestWithUser, @Body() updateUserDto: UpdateUserDto) {
     const result = this.usersService.update(request, updateUserDto);
+    return result;
+  }
+
+  @Public()
+  @Patch('availability')
+  @HttpCode(HttpStatus.OK)
+  @ApiCreatedResponse({
+    description: 'Registro atualizado com sucesso'
+  })
+  @ApiNotFoundResponse({
+    description: 'Registro não encontrado'
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Usuário não autenticado'
+  })
+  @ApiForbiddenResponse({
+    description: 'Nível de acesso insuficiente'
+  })
+  async updateAvailability(@Req() request: RequestWithUser, @Body() updateAvailabilityDto: UpdateAvailabilityDto) {
+    const result = this.usersService.updateAvailability(request, updateAvailabilityDto);
     return result;
   }
 

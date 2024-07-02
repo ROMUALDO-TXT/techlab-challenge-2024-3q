@@ -1,11 +1,11 @@
-import { Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { take, skip } from 'rxjs';
 import { Pagination } from 'src/domain/helpers/pagination.dto';
 import { ServiceBaseClass } from 'src/domain/helpers/service.class';
-import { DataSource, UpdateResult } from 'typeorm';
+import { DataSource, IsNull, UpdateResult } from 'typeorm';
 import { Logger } from 'winston';
 import { Conversation } from 'src/domain/entities/Conversation';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
@@ -14,6 +14,8 @@ import { Consumer } from 'src/domain/entities/Consumer';
 import { AddMessageDto } from './dto/add-message.dto';
 import { ConversationMessage } from 'src/domain/entities/ConversationMessage';
 import { AssignConversationDto } from './dto/assign-conversation.dto';
+import { RateConversationDto } from './dto/rate-conversation.dto';
+import { FinishConversationDto } from './dto/finish-conversation.dto';
 
 @Injectable()
 export class ConversationsService extends ServiceBaseClass {
@@ -24,7 +26,7 @@ export class ConversationsService extends ServiceBaseClass {
   ) {
     super();
   }
-  
+
   async create(createConversationDto: CreateConversationDto) {
     try {
       const userExists = await this.dataSource.manager.findOne(User, {
@@ -67,6 +69,48 @@ export class ConversationsService extends ServiceBaseClass {
     }
   }
 
+  async conversationStack(page: number = 1, limit: number = 25) {
+    try {
+      page = page > 0 ? page : 1;
+      limit = limit > 0 ? limit : 25;
+      const [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
+        where: {
+          status: 'Pending',
+          user: IsNull(),
+        },
+        relations: {
+          consumer: true
+        },
+        take: Number(take),
+        skip: Number(skip),
+        order: {
+          createdAt: 'ASC',
+        }
+      })
+
+      return {
+        status: 200,
+        data: Pagination.create(data, totalItems, page, limit),
+      };
+    } catch (error) {
+      if (!(error as any).status) {
+        console.log(error)
+        return {
+          status: 500,
+          message: 'internal server error'
+        }
+      }
+
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
+
+      return {
+        status: error.status || error.code || error.statusCode || 500,
+        message: error.message || error.response.message,
+        error: error,
+      };
+    }
+  }
+
   async assignConversationUser(assignConversationDto: AssignConversationDto) {
     try {
       const userExists = await this.dataSource.manager.findOne(User, {
@@ -77,19 +121,99 @@ export class ConversationsService extends ServiceBaseClass {
 
       if (!userExists) throw new NotFoundException("User not found");
 
+      const openConversations = await this.dataSource.manager.count(Conversation, {
+        where: {
+          user: userExists,
+          status: 'open',
+        }
+      })
+
+      //LIMITE DE CONVERSAS ABERTAS POR USER
+      if (openConversations >= 3) throw new BadRequestException("Open conversations limit exceeded for this user");
+
       const conversationExists = await this.dataSource.manager.findOne(Conversation, {
         where: {
           id: assignConversationDto.conversationId
         }
       });
 
-      if (!conversationExists) throw new NotFoundException("Consumer not found");
+      if (!conversationExists) throw new NotFoundException("Conversation not found");
 
-      conversationExists.user = userExists;
-
-      const result = await this.dataSource.manager.save(Conversation, conversationExists);
+      const result = await this.dataSource.manager.update(Conversation, {
+        id: conversationExists.id
+      }, {
+        user: userExists,
+        startedAt: new Date(),
+        status: 'open',
+      });
 
       if (result) {
+        this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
+      }
+
+      return result;
+
+    } catch (err) {
+      if (err.status == 404) throw new NotFoundException(err.message);
+      if (err) {
+        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
+        throw new Error(err);
+      }
+    }
+  }
+
+  async finishConversation(finishConversationDto: FinishConversationDto) {
+    try {
+      const conversationExists = await this.dataSource.manager.findOne(Conversation, {
+        where: {
+          id: finishConversationDto.conversationId
+        }
+      });
+
+      if (!conversationExists) throw new NotFoundException("Conversation not found");
+
+      const result = await this.dataSource.manager.update(Conversation, {
+        id: conversationExists.id
+      }, {
+        closingReason: finishConversationDto.closingReason,
+        finishedAt: new Date(),
+        status: 'closed',
+      });
+
+      if (result.affected > 0) {
+        this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
+      }
+
+      return result;
+
+    } catch (err) {
+      if (err.status == 404) throw new NotFoundException(err.message);
+      if (err) {
+        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
+        throw new Error(err);
+      }
+    }
+  }
+
+  async rateConversation(rateConversationDto: RateConversationDto) {
+    try {
+      const conversationExists = await this.dataSource.manager.findOne(Conversation, {
+        where: {
+          id: rateConversationDto.conversationId
+        }
+      });
+
+      if (!conversationExists) throw new NotFoundException("Conversation not found");
+      if (conversationExists.status !== 'closed') throw new BadRequestException("Cannot rate unfinished conversations");
+
+
+      const result = await this.dataSource.manager.update(Conversation, {
+        id: conversationExists.id
+      }, {
+        rate: rateConversationDto.rating
+      });
+
+      if (result.affected > 0) {
         this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
       }
 
@@ -162,7 +286,7 @@ export class ConversationsService extends ServiceBaseClass {
         }
       }
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service | infoUser]: ${JSON.stringify(error)}`);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,
@@ -187,9 +311,24 @@ export class ConversationsService extends ServiceBaseClass {
         skip: Number(skip),
       })
 
+      const lastMessages = await Promise.all(data.map((c) => this.dataSource.manager.findOne(ConversationMessage, {
+        where: {
+          conversation: c
+        },
+        order: {
+          createdAt: 'DESC',
+        }
+      })))
+
+      let result = data.map((data) => {
+        let lastMessage = lastMessages.find((m) => m.conversation === data);
+        Object.assign(data, { lastMessage, ...data });
+        return data
+      })
+
       return {
         status: 200,
-        data: Pagination.create(data, totalItems, page, limit),
+        data: Pagination.create(result, totalItems, page, limit),
       };
     } catch (error) {
       if (!(error as any).status) {
@@ -200,7 +339,7 @@ export class ConversationsService extends ServiceBaseClass {
         }
       }
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service | infoUser]: ${JSON.stringify(error)}`);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,
@@ -237,7 +376,7 @@ export class ConversationsService extends ServiceBaseClass {
         }
       }
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service | infoUser]: ${JSON.stringify(error)}`);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,

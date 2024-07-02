@@ -1,5 +1,5 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsUUID, Length, Validate } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, IsUUID, Length, Validate } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { EmailValidation } from 'src/auth/dto/email-validation';
 
@@ -20,9 +20,16 @@ export class UpdateUserDto {
     @IsEmail()
     @Validate(EmailValidation, { each: true })
     email: string;
-  
+
     @IsOptional()
     @IsUUID()
     @ApiPropertyOptional()
     profile?: string;
+}
+
+export class UpdateAvailabilityDto {
+    @IsNotEmpty()
+    @IsBoolean()
+    @ApiProperty()
+    available: boolean;
 }

@@ -15,6 +15,11 @@ export class User {
   @Column()
   password: string
 
+  @Column({
+    nullable: true,
+  })
+  available: boolean
+
   @ManyToOne(() => Profile)
   @JoinTable()
   profile: Profile;
