@@ -4,14 +4,21 @@ import { Request } from 'express';
 import { verify } from 'jsonwebtoken';
 import { jwtPayload } from '../interfaces/jwt-payload.interface';
 import { UserSub } from '../interfaces/user-sub.interface';
+import { InjectRepository } from '@nestjs/typeorm';
+import { User } from 'src/domain/entities/User';
+import { Repository } from 'typeorm';
+import { Profile } from 'src/domain/entities/Profile';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
-  constructor(private reflector: Reflector) { }
-  
-  async canActivate(context: any): Promise<boolean> {  
-    const scopes =
-      this.reflector.getAllAndMerge<String[]>('scopes', [
+  constructor(
+    private reflector: Reflector,
+    @InjectRepository(Profile)
+    private profileRepository: Repository<Profile>,
+  ) { }
+  async canActivate(context: any): Promise<boolean> {
+    const requiredPermissions =
+      this.reflector.getAllAndMerge<String[]>('permissions', [
         context.getClass(),
         context.getHandler(),
       ]) || [];
@@ -21,7 +28,7 @@ export class PermissionsGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (isPublic) {
+    if (!requiredPermissions || isPublic) {
       return true;
     }
 
@@ -29,11 +36,17 @@ export class PermissionsGuard implements CanActivate {
     const [, token] = request.headers.authorization.split(' ');
     const decodedToken = verify(token, process.env.APP_SECRET) as jwtPayload;
     const decoded = JSON.parse(decodedToken.sub) as UserSub;
+    const profile = await this.profileRepository.findOne({
+      where: {
+        id: decoded.profileId,
+      },
+      relations: {
+        permissions: true,
+      },
+    });
 
-    if (decoded.scopes.includes('*')) return true
-
-    const isScopeAllowed = (scope: string) => decoded.scopes.includes(scope);
-    
-    return scopes.some(isScopeAllowed);
+    return requiredPermissions.every(permission =>
+      profile.permissions.some(userPermission => userPermission.name === permission),
+    );
   }
 }

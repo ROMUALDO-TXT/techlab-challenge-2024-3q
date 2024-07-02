@@ -15,6 +15,8 @@ import { ConversationMessage } from './domain/entities/ConversationMessage';
 import { Consumer } from './domain/entities/Consumer';
 import { ConversationsModule } from './conversations/conversations.module';
 import { ConsumersModule } from './consumers/consumers.module';
+import { Profile } from './domain/entities/Profile';
+import { Permission } from './domain/entities/permission';
 
 @Module({
   imports: [
@@ -33,7 +35,9 @@ import { ConsumersModule } from './consumers/consumers.module';
         User,
         Consumer,
         Conversation,
-        ConversationMessage
+        ConversationMessage,
+        Permission,
+        Profile
       ],
       logging: true,
       synchronize: false,
@@ -64,7 +68,7 @@ import { ConsumersModule } from './consumers/consumers.module';
     AuthModule,
     UsersModule,
     ConversationsModule,
-    ConsumersModule, 
+    // ConsumersModule, 
   ],
   providers: [
     {

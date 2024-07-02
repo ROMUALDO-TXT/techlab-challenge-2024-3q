@@ -12,22 +12,22 @@ export enum ConversationMessageBy {
 @Index(() => ({ conversation: 1, createdAt: -1 }))
 export class ConversationMessage {
   @PrimaryGeneratedColumn('uuid')
-  public id!: string
+  id: string
 
   @Column('text')
-  public content!: string
+  content: string
 
   @Column('enum', { enum: ConversationMessageBy })
-  public by!: ConversationMessageBy
+  by: ConversationMessageBy
 
   @ManyToOne(() => Conversation, { nullable: false })
   @JoinColumn()
-  public conversation!: Relation<Conversation>
+  conversation: Relation<Conversation>
 
   @ManyToOne(() => User)
   @JoinColumn()
-  public user!: User | null
+  user: User | null
 
   @CreateDateColumn()
-  public createdAt!: Date
+  createdAt: Date
 }

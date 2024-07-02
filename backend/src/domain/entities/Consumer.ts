@@ -1,28 +1,33 @@
-import { Column, CreateDateColumn, DeleteDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { User } from "./User";
 
 @Entity('consumers')
 export class Consumer {
   @PrimaryGeneratedColumn('uuid')
-  public id!: string
+  id: string
 
   @Column('character varying', { nullable: true })
-  public firstName!: string | null
+  firstName: string | null
 
   @Column('character varying', { nullable: true })
-  public lastName!: string | null
+  lastName: string | null
 
   @Column('character varying', { unique: true })
-  public document!: string
+  document: string
 
   @Column('timestamp without time zone', { nullable: true })
-  public birthDate!: Date | null
+  birthDate: Date | null
 
+  @OneToOne(() => User)
+  @JoinColumn()
+  user: User;
+  
   @CreateDateColumn()
-  public createdAt!: Date
+  createdAt: Date
 
   @UpdateDateColumn()
-  public updatedAt!: Date
+  updatedAt: Date
 
   @DeleteDateColumn()
-  public deletedAt!: Date | null
+  deletedAt: Date | null
 }

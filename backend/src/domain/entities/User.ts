@@ -1,29 +1,30 @@
-import { Column, CreateDateColumn, DeleteDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
-import { profiles } from "../constants/profiles.js";
+import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Profile } from "./Profile.js";
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  public id!: string
+  id: string
 
   @Column({ unique: true })
-  public username!: string
+  username: string
 
   @Column({ unique: true })
-  public email!: string
+  email: string
 
   @Column()
-  public password!: string
+  password: string
 
-  @Column('enum', { enum: Object.keys(profiles) })
-  public profile!: keyof typeof profiles
+  @ManyToOne(() => Profile)
+  @JoinTable()
+  profile: Profile;
 
   @CreateDateColumn()
-  public createdAt!: Date
+  createdAt: Date
 
   @UpdateDateColumn()
-  public updatedAt!: Date
+  updatedAt: Date
 
   @DeleteDateColumn()
-  public deletedAt!: Date | null
+  deletedAt: Date | null
 }

@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Consumer } from "./Consumer.js";
 import { ConversationMessage } from "./ConversationMessage.js";
 import { User } from "./User.js";
@@ -6,28 +6,40 @@ import { User } from "./User.js";
 @Entity('conversations')
 export class Conversation {
   @PrimaryGeneratedColumn('uuid')
-  public id!: string
+  id: string
 
   @Column()
-  public subject!: string
+  subject: string
 
   @ManyToOne(() => Consumer, { nullable: false })
   @JoinColumn()
-  public consumer!: Consumer
+  consumer: Consumer
 
   @ManyToOne(() => User)
   @JoinColumn()
-  public user!: User | null
+  user: User | null
 
   @OneToMany(() => ConversationMessage, message => message.conversation, { cascade: ['insert'] })
-  public messages!: ConversationMessage[]
+  messages: ConversationMessage[]
 
-  @CreateDateColumn()
-  public createdAt!: Date
+  @Column() //pending //opened //closed
+  status: string;
 
-  @CreateDateColumn()
-  public UpdatedAt!: Date
+  @Column()
+  rate: number | null;
+
+  @Column()
+  closingReason: string | null;
+
+  @Column() //Service Started
+  startedAt: Date | null;
+
+  @Column() //Service Finished
+  finishedAt: Date | null
+
+  @CreateDateColumn() //Awaiting Started
+  createdAt: Date
 
   @DeleteDateColumn()
-  public deletedAt!: Date | null
+  deletedAt: Date | null
 }

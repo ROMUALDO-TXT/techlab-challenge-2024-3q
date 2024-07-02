@@ -7,6 +7,7 @@ import { DataSource } from 'typeorm';
 import { User } from 'src/domain/entities/User';
 import { profiles } from 'src/domain/constants/profiles';
 import { UserSub } from './interfaces/user-sub.interface';
+import { Consumer } from 'src/domain/entities/Consumer';
 
 @Injectable()
 export class AuthService {
@@ -31,27 +32,40 @@ export class AuthService {
     if (!confirmPassword) {
       throw new UnauthorizedException(`Senha incorreta`);
     }
+    
+    const isConsumer = await this.dataSource.manager.findOne(Consumer, {
+      where:{
+        user: user,
+      }
+    });
 
     delete user.password;
+    
+    if(isConsumer) return {
+      token: this.signToken(user),
+      id: user.id,
+      email: user.email,
+      profileId: user.profile.id,
+      username: isConsumer.firstName + " " + isConsumer.lastName,
+      consumerId: isConsumer.id
+    }
 
-    const scopes = profiles[user.profile].scopes(user)
 
     return {
       token: this.signToken(user),
       id: user.id,
       email: user.email,
-      scopes: Array.isArray(scopes) ? scopes : [scopes],
-      name: user.username,
+      profileId: user.profile.id,
+      username: user.username,
     };
   }
   
   signToken(user: User) {
-    const scopes = profiles[user.profile].scopes(user);
     const subject = {
       sub: JSON.stringify({
         id: user.id,
         email: user.email,
-        scopes: Array.isArray(scopes) ? scopes : [scopes],
+        profileId: user.profile.id,
         username: user.username,
       }),
     };

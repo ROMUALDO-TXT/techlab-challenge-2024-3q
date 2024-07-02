@@ -1,6 +1,7 @@
 export interface UserSub {
     id: string;
-    scopes: String[];
+    profileId: string;
     email: string;
     username: string;
+    consumerId?: string;
   }

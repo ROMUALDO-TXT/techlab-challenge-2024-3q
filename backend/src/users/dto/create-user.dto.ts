@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsNotEmpty, IsString, Length, Validate } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsString, IsUUID, Length, Validate } from 'class-validator';
 import { EmailValidation } from 'src/auth/dto/email-validation';
 import { Profiles, profiles } from 'src/domain/constants/profiles';
 
@@ -23,7 +23,7 @@ export class CreateUserDto {
     password: string;
 
     @IsNotEmpty()
-    @IsEnum(Object.keys(profiles))
+    @IsUUID()
     @ApiProperty()
-    profile: Profiles;
+    profile: string;
 }

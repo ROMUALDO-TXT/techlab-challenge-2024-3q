@@ -12,6 +12,7 @@ import { JwtService } from '@nestjs/jwt';
 import { profiles } from 'src/domain/constants/profiles';
 import { Pagination } from 'src/domain/helpers/pagination.dto';
 import { SearchUserDto } from './dto/search-user.dto';
+import { Profile } from 'src/domain/entities/Profile';
 
 @Injectable()
 export class UsersService extends ServiceBaseClass {
@@ -25,13 +26,21 @@ export class UsersService extends ServiceBaseClass {
   }
   async create(createUserDto: CreateUserDto) {
     try {
+      const profileExists = await this.dataSource.manager.findOne(Profile, {
+        where: {
+          id: createUserDto.profile,
+        }
+      })
+
+      if (!profileExists) throw new NotFoundException('Profile not found');;
+
       const pswd = await hash(createUserDto.password, 8);
 
       const user = this.dataSource.manager.create(User, {
         username: createUserDto.username,
         email: createUserDto.email,
         password: pswd,
-        profile: createUserDto.profile,
+        profile: profileExists,
       });
 
       const result = await this.dataSource.manager.save(User, user);
@@ -104,8 +113,14 @@ export class UsersService extends ServiceBaseClass {
         select: {
           id: true,
           username: true,
-          profile: true,
+          profile: {
+            id: true,
+            name: true,
+          },
           email: true,
+        },
+        relations:{
+          profile: true,
         },
         skip: (page - 1) * limit,
         take: limit,
@@ -140,8 +155,14 @@ export class UsersService extends ServiceBaseClass {
         select: {
           id: true,
           username: true,
-          profile: true,
+          profile: {
+            id: true,
+            name: true,
+          },
           email: true,
+        },
+        relations: {
+          profile: true,
         },
         where: {
           id: id
@@ -179,8 +200,15 @@ export class UsersService extends ServiceBaseClass {
         select: {
           id: true,
           username: true,
-          profile: true,
+          profile: {
+            id: true,
+            name: true,
+            permissions: true,
+          },
           email: true,
+        },
+        relations: {
+          profile: true,
         },
         where: {
           id: user.id
@@ -241,12 +269,11 @@ export class UsersService extends ServiceBaseClass {
       await queryRunner.commitTransaction();
 
       if (renewToken) {
-        const scopes = profiles[result.profile].scopes(user);
         const subject = {
           sub: JSON.stringify({
             id: user.id,
             email: user.email,
-            scopes: Array.isArray(scopes) ? scopes : [scopes],
+            profileId: user.profile.id,
             username: user.username,
           }),
         };
@@ -301,7 +328,7 @@ export class UsersService extends ServiceBaseClass {
       await queryRunner.commitTransaction();
 
       this.logger.log("info", `[DELETED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(userExists)}`);
-      
+
     } catch (err) {
       if (err.status == 404) throw new NotFoundException(err.message);
       if (err) {

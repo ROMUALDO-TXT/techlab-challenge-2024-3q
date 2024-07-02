@@ -24,6 +24,7 @@ export class ConversationsService extends ServiceBaseClass {
   ) {
     super();
   }
+  
   async create(createConversationDto: CreateConversationDto) {
     try {
       const userExists = await this.dataSource.manager.findOne(User, {

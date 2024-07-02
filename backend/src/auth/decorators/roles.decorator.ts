@@ -1,4 +1,4 @@
 import { SetMetadata } from '@nestjs/common';
 
-export const Permissions = (...scopes: string[]) =>
-  SetMetadata('scopes', scopes);
+export const Permissions = (...permissions: string[]) =>
+  SetMetadata('permissions', permissions);
