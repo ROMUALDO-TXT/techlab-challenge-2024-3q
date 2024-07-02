@@ -1,10 +1,7 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { CreateUserDto } from './create-user.dto';
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, Length, Validate } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsUUID, Length, Validate } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
 import { EmailValidation } from 'src/auth/dto/email-validation';
-import { profiles } from 'src/domain/constants/profiles';
 
 export class UpdateUserDto {
     @IsUUID()
@@ -25,7 +22,7 @@ export class UpdateUserDto {
     email: string;
   
     @IsOptional()
-    @IsEnum(Object.keys(profiles))
+    @IsUUID()
     @ApiPropertyOptional()
-    profile?: keyof typeof profiles;
+    profile?: string;
 }

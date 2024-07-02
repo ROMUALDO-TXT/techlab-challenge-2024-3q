@@ -6,15 +6,14 @@ import { jwtPayload } from '../interfaces/jwt-payload.interface';
 import { UserSub } from '../interfaces/user-sub.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/domain/entities/User';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Profile } from 'src/domain/entities/Profile';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
-    @InjectRepository(Profile)
-    private profileRepository: Repository<Profile>,
+    private dataSource: DataSource,
   ) { }
   async canActivate(context: any): Promise<boolean> {
     const requiredPermissions =
@@ -36,7 +35,7 @@ export class PermissionsGuard implements CanActivate {
     const [, token] = request.headers.authorization.split(' ');
     const decodedToken = verify(token, process.env.APP_SECRET) as jwtPayload;
     const decoded = JSON.parse(decodedToken.sub) as UserSub;
-    const profile = await this.profileRepository.findOne({
+    const profile = await this.dataSource.manager.findOne(Profile,{
       where: {
         id: decoded.profileId,
       },

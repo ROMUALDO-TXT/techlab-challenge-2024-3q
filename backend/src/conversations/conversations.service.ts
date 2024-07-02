@@ -47,6 +47,7 @@ export class ConversationsService extends ServiceBaseClass {
         user: userExists,
         consumer: consumerExists,
         subject: createConversationDto.subject,
+        status: 'pending'
       });
 
       const result = await this.dataSource.manager.save(Conversation, conversation);

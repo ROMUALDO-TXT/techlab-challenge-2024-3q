@@ -3,7 +3,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ServiceBaseClass } from 'src/domain/helpers/service.class';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { DataSource } from 'typeorm';
+import { DataSource, UpdateResult } from 'typeorm';
 import { Logger } from 'winston';
 import { hash } from 'bcrypt';
 import { User } from 'src/domain/entities/User';
@@ -230,7 +230,7 @@ export class UsersService extends ServiceBaseClass {
         }
       }
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service | infoUser]: ${JSON.stringify(error)}`);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,
@@ -311,7 +311,7 @@ export class UsersService extends ServiceBaseClass {
 
     const queryRunner = this.dataSource.createQueryRunner();
 
-    let result: User;
+    let result: UpdateResult;
 
     await queryRunner.startTransaction();
 
@@ -326,6 +326,8 @@ export class UsersService extends ServiceBaseClass {
       }
 
       await queryRunner.commitTransaction();
+
+      delete userExists.password;
 
       this.logger.log("info", `[DELETED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(userExists)}`);
 

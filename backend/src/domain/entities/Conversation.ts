@@ -22,19 +22,29 @@ export class Conversation {
   @OneToMany(() => ConversationMessage, message => message.conversation, { cascade: ['insert'] })
   messages: ConversationMessage[]
 
-  @Column() //pending //opened //closed
+  @Column({
+    default: 'pending'
+  }) //pending //opened //closed
   status: string;
 
-  @Column()
+  @Column({
+    nullable: true,
+  })
   rate: number | null;
 
-  @Column()
+  @Column({
+    nullable: true,
+  })
   closingReason: string | null;
 
-  @Column() //Service Started
+  @Column({
+    nullable: true,
+  }) //Service Started
   startedAt: Date | null;
 
-  @Column() //Service Finished
+  @Column({
+    nullable: true,
+  }) //Service Finished
   finishedAt: Date | null
 
   @CreateDateColumn() //Awaiting Started
