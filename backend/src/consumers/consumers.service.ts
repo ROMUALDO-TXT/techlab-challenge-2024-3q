@@ -1,9 +1,8 @@
-import { Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { CreateConsumerDto } from './dto/create-consumer.dto';
 import { Pagination } from 'src/domain/helpers/pagination.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { take, skip } from 'rxjs';
-import { DataSource } from 'typeorm';
+import { DataSource, UpdateResult } from 'typeorm';
 import { Logger } from 'winston';
 import { ServiceBaseClass } from 'src/domain/helpers/service.class';
 import { Profile } from 'src/domain/entities/Profile';
@@ -12,7 +11,6 @@ import { hash } from 'bcrypt';
 import { Consumer } from 'src/domain/entities/Consumer';
 import { JwtService } from '@nestjs/jwt';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
-
 
 @Injectable()
 export class ConsumersService extends ServiceBaseClass {
@@ -33,59 +31,96 @@ export class ConsumersService extends ServiceBaseClass {
         }
       })
 
-      const pswd = await hash(createConsumerDto.password, 8);
+      const emailExists = await this.dataSource.manager.findOne(User, {
+        where: {
+          email: createConsumerDto.email,
+        }
+      })
 
-      const user = this.dataSource.manager.create(User, {
-        username: createConsumerDto.firstName + "." + createConsumerDto.lastName + "@" + Math.floor(100000 + Math.random() * 900000),
-        email: createConsumerDto.email,
-        password: pswd,
-        profile: consumerProfile,
-      });
+      if (emailExists) throw new BadRequestException("Email already exists");
 
-      const consumer = this.dataSource.manager.create(Consumer, {
-        firstName: createConsumerDto.firstName,
-        lastName: createConsumerDto.lastName,
-        document: createConsumerDto.document,
-        birthDate: createConsumerDto.birthDate,
-        user: user,
-      });
+      const document = await this.dataSource.manager.findOne(Consumer, {
+        where: {
+          document: createConsumerDto.document
+        }
+      })
 
-      const result = await this.dataSource.manager.save(Consumer, consumer);
+      if (document) throw new BadRequestException("Document already exists");
+      let result: Consumer;
 
-      delete consumer.user.password;
+      const queryRunner = this.dataSource.createQueryRunner();
 
-      if (result) {
-        this.logger.log("info", `[CREATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
+      await queryRunner.startTransaction();
+
+      try {
+        const pswd = await hash(createConsumerDto.password, 8);
+
+        const user = await queryRunner.manager.save(User,
+          queryRunner.manager.create(User, {
+            username: createConsumerDto.firstName + "." + createConsumerDto.lastName + "@" + Math.floor(100000 + Math.random() * 900000),
+            email: createConsumerDto.email,
+            password: pswd,
+            profile: consumerProfile,
+          })
+        );
+
+        result = await queryRunner.manager.save(Consumer,
+          queryRunner.manager.create(Consumer, {
+            firstName: createConsumerDto.firstName,
+            lastName: createConsumerDto.lastName,
+            document: createConsumerDto.document,
+            birthDate: createConsumerDto.birthDate,
+            user: user,
+          })
+        );
+
+        await queryRunner.commitTransaction()
+        delete result.user.password;
+
+      } catch (err) {
+        await queryRunner.rollbackTransaction();
+        throw err;
+      } finally {
+        await queryRunner.release();
       }
 
+      this.logger.log("info", `[CREATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
       const subject = {
         sub: JSON.stringify({
-          id: user.id,
-          email: user.email,
-          profileId: user.profile.id,
-          username: user.username,
+          id: result.user.id,
+          email: result.user.email,
+          profileId: result.user.profile.id,
+          username: result.user.username,
         }),
       };
 
       const token = this.jwtService.sign(subject);
 
       return {
+        status: 201,
         token: token,
-        id: consumer.user.id,
-        email: consumer.user.email,
-        profileId: consumer.user.profile.id,
-        username: consumer.firstName + " " + consumer.lastName,
-        consumerId: consumer.id
+        user: result,
       }
 
-    } catch (err) {
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
-      }
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode || 500,
+        message: error.message,
+        error: error,
+      };
     }
   }
+
 
   async findAll(page: number = 1, limit: number = 25) {
     try {
@@ -100,8 +135,8 @@ export class ConsumersService extends ServiceBaseClass {
             email: true,
           }
         },
-        take: Number(take),
-        skip: Number(skip),
+        skip: (page - 1) * limit,
+        take: limit,
         order: {
           createdAt: 'DESC'
         }
@@ -112,14 +147,6 @@ export class ConsumersService extends ServiceBaseClass {
         data: Pagination.create(messages, count, page, limit),
       };
     } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
-
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
@@ -133,7 +160,7 @@ export class ConsumersService extends ServiceBaseClass {
   async findOne(id: string) {
     try {
       const data = await this.dataSource.manager.findOne(Consumer, {
-        where:{
+        where: {
           id: id,
         },
         select: {
@@ -151,14 +178,6 @@ export class ConsumersService extends ServiceBaseClass {
         data: data,
       };
     } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
-
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
@@ -176,8 +195,8 @@ export class ConsumersService extends ServiceBaseClass {
           user: true,
         },
         where: {
-          user:{
-            id:user.id
+          user: {
+            id: user.id
           }
         }
       });
@@ -189,14 +208,6 @@ export class ConsumersService extends ServiceBaseClass {
         data: data,
       };
     } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
-
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
@@ -265,50 +276,80 @@ export class ConsumersService extends ServiceBaseClass {
   // }
 
   async remove(id: string) {
-    const consumerExists = await this.dataSource.manager.findOne(Consumer, {
-      where: {
-        id: id,
-      }
-    })
-
-    if (!consumerExists) throw new NotFoundException('User not found');
-
-    const queryRunner = this.dataSource.createQueryRunner();
-
-    await queryRunner.startTransaction();
-
     try {
-
-      let result = await queryRunner.manager.softDelete(Consumer, {
-        id: consumerExists.id
+      const consumerExists = await this.dataSource.manager.findOne(Consumer, {
+        where: {
+          id: id,
+        }
       })
 
-      if (result.affected == 0) {
-        throw new InternalServerErrorException()
+      if (!consumerExists) throw new NotFoundException('User not found');
+
+      let results: UpdateResult;
+
+      const queryRunner = this.dataSource.createQueryRunner();
+
+      await queryRunner.startTransaction();
+
+      try {
+
+        results = await queryRunner.manager.softDelete(Consumer, {
+          id: consumerExists.id
+        })
+
+        if (results.affected == 0) {
+          throw new InternalServerErrorException()
+        }
+
+        results = await queryRunner.manager.softDelete(User, {
+          id: consumerExists.user.id
+        })
+
+        if (results.affected == 0) {
+          throw new InternalServerErrorException()
+        }
+
+        await queryRunner.commitTransaction();
+      } catch (err) {
+        await queryRunner.rollbackTransaction();
+        throw err;
+      } finally {
+        await queryRunner.release();
       }
 
-      result = await queryRunner.manager.softDelete(User, {
-        id: consumerExists.user.id
-      })
+      if (results.affected > 0) {
+        this.logger.log(
+          'info',
+          `[DELETED - ${this.constructor.name} | ${this.getFunctionName()}]: id: ${id}`,
+        );
 
-      if (result.affected == 0) {
-        throw new InternalServerErrorException()
+        return {
+          status: 200,
+          data: results,
+          message: 'deleted',
+        };
       }
 
-      await queryRunner.commitTransaction();
+      throw new InternalServerErrorException(
+        'Não foi possível concluir a operação',
+      );
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
 
-      delete consumerExists.user.password;
-    
-      this.logger.log("info", `[DELETED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(consumerExists)}`);
-
-    } catch (err) {
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
-      }
-    } finally {
-      await queryRunner.release();
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode ||
+          500,
+        message: error.message || error.response.message,
+        error: error,
+      };
     }
   }
 }

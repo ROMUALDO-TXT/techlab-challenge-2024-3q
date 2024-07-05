@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule } from '@nestjs/config';
 import { AuthController } from './auth.controller';
@@ -7,6 +6,7 @@ import { AuthService } from './auth.service';
 import { CpfValidation } from './dto/cpf-validation';
 import { EmailValidation } from './dto/email-validation';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
     imports: [
@@ -21,6 +21,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     ],
     controllers: [AuthController],
     providers: [AuthService, JwtStrategy, EmailValidation, CpfValidation],
-    exports:[CpfValidation, EmailValidation, JwtModule],
+    exports: [CpfValidation, EmailValidation],
 })
 export class AuthModule { }

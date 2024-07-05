@@ -32,6 +32,7 @@ export class Conversation {
   })
   rate: number | null;
 
+  //concluded | timedout |
   @Column({
     nullable: true,
   })

@@ -2,7 +2,6 @@ import { BadRequestException, Inject, Injectable, InternalServerErrorException, 
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { take, skip } from 'rxjs';
 import { Pagination } from 'src/domain/helpers/pagination.dto';
 import { ServiceBaseClass } from 'src/domain/helpers/service.class';
 import { DataSource, IsNull, UpdateResult } from 'typeorm';
@@ -58,14 +57,28 @@ export class ConversationsService extends ServiceBaseClass {
         this.logger.log("info", `[CREATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
       }
 
-      return result;
+      return {
+        status: 201,
+        data: result
+      };
 
-    } catch (err) {
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
-      }
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode ||
+          500,
+        message: error.message || error.response.message,
+        error: error,
+      };
     }
   }
 
@@ -81,8 +94,8 @@ export class ConversationsService extends ServiceBaseClass {
         relations: {
           consumer: true
         },
-        take: Number(take),
-        skip: Number(skip),
+        skip: (page - 1) * limit,
+        take: limit,
         order: {
           createdAt: 'ASC',
         }
@@ -92,19 +105,21 @@ export class ConversationsService extends ServiceBaseClass {
         status: 200,
         data: Pagination.create(data, totalItems, page, limit),
       };
-    } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
 
       return {
-        status: error.status || error.code || error.statusCode || 500,
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode ||
+          500,
         message: error.message || error.response.message,
         error: error,
       };
@@ -151,14 +166,28 @@ export class ConversationsService extends ServiceBaseClass {
         this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
       }
 
-      return result;
+      return {
+        status: 200,
+        data: result
+      };
 
-    } catch (err) {
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
-      }
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode ||
+          500,
+        message: error.message || error.response.message,
+        error: error,
+      };
     }
   }
 
@@ -184,14 +213,28 @@ export class ConversationsService extends ServiceBaseClass {
         this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
       }
 
-      return result;
+      return {
+        status: 200,
+        data: result,
+      };
 
-    } catch (err) {
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
-      }
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode ||
+          500,
+        message: error.message || error.response.message,
+        error: error,
+      };
     }
   }
 
@@ -206,7 +249,6 @@ export class ConversationsService extends ServiceBaseClass {
       if (!conversationExists) throw new NotFoundException("Conversation not found");
       if (conversationExists.status !== 'closed') throw new BadRequestException("Cannot rate unfinished conversations");
 
-
       const result = await this.dataSource.manager.update(Conversation, {
         id: conversationExists.id
       }, {
@@ -217,14 +259,28 @@ export class ConversationsService extends ServiceBaseClass {
         this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
       }
 
-      return result;
+      return {
+        status: 200,
+        data: result
+      };
 
-    } catch (err) {
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
-      }
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode ||
+          500,
+        message: error.message || error.response.message,
+        error: error,
+      };
     }
   }
 
@@ -249,15 +305,29 @@ export class ConversationsService extends ServiceBaseClass {
 
       if (result) {
         this.logger.log("info", `[CREATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
+        return {
+          status: 201,
+          data: result,
+        };
       }
-      return result;
 
-    } catch (err) {
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
-      }
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode ||
+          500,
+        message: error.message || error.response.message,
+        error: error,
+      };
     }
   }
 
@@ -269,23 +339,16 @@ export class ConversationsService extends ServiceBaseClass {
         relations: {
           consumer: true
         },
-        take: Number(take),
-        skip: Number(skip),
+        skip: (page - 1) * limit,
+        take: limit,
       })
 
       return {
         status: 200,
         data: Pagination.create(data, totalItems, page, limit),
       };
-    } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
 
+    } catch (error) {
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
@@ -307,8 +370,8 @@ export class ConversationsService extends ServiceBaseClass {
             id: user.id
           }
         },
-        take: Number(take),
-        skip: Number(skip),
+        skip: (page - 1) * limit,
+        take: limit,
       })
 
       const lastMessages = await Promise.all(data.map((c) => this.dataSource.manager.findOne(ConversationMessage, {
@@ -331,14 +394,6 @@ export class ConversationsService extends ServiceBaseClass {
         data: Pagination.create(result, totalItems, page, limit),
       };
     } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
-
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
@@ -368,14 +423,6 @@ export class ConversationsService extends ServiceBaseClass {
         data: data,
       };
     } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
-
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
@@ -402,17 +449,16 @@ export class ConversationsService extends ServiceBaseClass {
 
       if (!conversation) throw new NotFoundException('Conversation not found');
 
-
       const [messages, count] = await this.dataSource.manager.findAndCount(ConversationMessage, {
         where: {
           conversation: {
             id: conversation.id
           }
         },
-        take: Number(take),
-        skip: Number(skip),
+        skip: (page - 1) * limit,
+        take: limit,
         order: {
-          createdAt: 'DESC'
+          createdAt: 'ASC'
         }
       })
 
@@ -424,14 +470,6 @@ export class ConversationsService extends ServiceBaseClass {
         },
       };
     } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
-
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
       return {
@@ -443,46 +481,61 @@ export class ConversationsService extends ServiceBaseClass {
   }
 
   async remove(id: string) {
-    const conversationExists = await this.dataSource.manager.findOne(Conversation, {
-      where: {
-        id: id,
-      },
-      relations: {
-        consumer: true,
-      }
-    })
-
-    if (!conversationExists) throw new NotFoundException('Conversation not found');
-
-    const queryRunner = this.dataSource.createQueryRunner();
-
-    await queryRunner.startTransaction();
-
-    let result: UpdateResult
-
     try {
-
-      result = await queryRunner.manager.softDelete(Conversation, {
-        id: conversationExists.id
+      const conversationExists = await this.dataSource.manager.findOne(Conversation, {
+        where: {
+          id: id,
+        },
+        relations: {
+          consumer: true,
+        }
       })
 
-      if (result.affected == 0) {
-        throw new InternalServerErrorException()
+      if (!conversationExists) throw new NotFoundException('Conversation not found');
+
+      const queryRunner = this.dataSource.createQueryRunner();
+
+      await queryRunner.startTransaction();
+
+      let result: UpdateResult
+
+      try {
+        result = await queryRunner.manager.softDelete(Conversation, {
+          id: conversationExists.id
+        })
+
+        await queryRunner.commitTransaction();
+      } catch (err) {
+        await queryRunner.rollbackTransaction();
+      } finally {
+        await queryRunner.release();
       }
 
-      await queryRunner.commitTransaction();
-
-      this.logger.log("info", `[DELETED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(conversationExists)}`);
-
-    } catch (err) {
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
+      if (result.affected > 0) {
+        this.logger.log("info", `[DELETED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(conversationExists)}`);
+        return {
+          status: 200,
+          data:result
+        };
       }
-    } finally {
-      await queryRunner.release();
+
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode ||
+          500,
+        message: error.message || error.response.message,
+        error: error,
+      };
     }
-    return result;
   }
 }

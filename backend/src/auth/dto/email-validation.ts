@@ -29,6 +29,8 @@ export class EmailValidation implements ValidatorConstraintInterface {
             }
         });
 
+        console.log(emailExists)
+
         if(dto.id){
             if(emailExists && emailExists.id !== dto.id) throw new BadRequestException("endereço de email ja está em uso");
         }else{

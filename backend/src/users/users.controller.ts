@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Req, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Req, Query, Res } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateAvailabilityDto, UpdateUserDto } from './dto/update-user.dto';
@@ -7,6 +7,7 @@ import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
 import { Permissions } from 'src/auth/decorators/roles.decorator';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { SearchUserDto } from './dto/search-user.dto';
+import { Response } from 'express';
 
 @ApiTags("Usuarios")
 @Controller('users')
@@ -20,9 +21,9 @@ export class UsersController {
   @ApiCreatedResponse({
     description: 'Registro criado com sucesso'
   })
-  async create(@Body() createUserDto: CreateUserDto) {
-    const result = this.usersService.create(createUserDto);
-    return result;
+  async create(@Body() createUserDto: CreateUserDto, @Res() response: Response) {
+    const res = await this.usersService.create(createUserDto);
+    return response.status(res.status).send(res);
   }
 
   @Get('')
@@ -40,9 +41,9 @@ export class UsersController {
   @ApiForbiddenResponse({
     description: 'Nível de acesso insuficiente'
   })
-  async findSelf(@Req() request: RequestWithUser) {
-    const result = this.usersService.findSelf(request);
-    return result;
+  async findSelf(@Req() request: RequestWithUser, @Res() response: Response) {
+    const res = await this.usersService.findSelf(request);
+    return response.status(res.status).send(res);
   }
 
   @Public()
@@ -60,9 +61,9 @@ export class UsersController {
   @ApiForbiddenResponse({
     description: 'Nível de acesso insuficiente'
   })
-  async findOne(@Param('id') id: string) {
-    const result = this.usersService.findOne(id);
-    return result;
+  async findOne(@Param('id') id: string, @Res() response: Response) {
+    const res = await this.usersService.findOne(id);
+    return response.status(res.status).send(res);
   }
 
   @Public()
@@ -80,9 +81,13 @@ export class UsersController {
   @ApiForbiddenResponse({
     description: 'Nível de acesso insuficiente'
   })
-  async findAll(@Query('page') page: number, @Query('limit') limit: number) {
-    const result = await this.usersService.findAll(page, limit);
-    return result;
+  async findAll(
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Res() response: Response
+  ) {
+    const res = await this.usersService.findAll(page, limit);
+    return response.status(res.status).send(res);
   }
 
   @Public()
@@ -100,9 +105,14 @@ export class UsersController {
   @ApiForbiddenResponse({
     description: 'Nível de acesso insuficiente'
   })
-  async searchUsers(@Body() searchUserDto: SearchUserDto, @Query('page') page: number, @Query('limit') limit: number) {
-    const result = await this.usersService.searchUser(searchUserDto, page, limit);
-    return result;
+  async searchUsers(
+    @Body() searchUserDto: SearchUserDto,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Res() response: Response
+  ) {
+    const res = await this.usersService.searchUser(searchUserDto, page, limit);
+    return response.status(res.status).send(res);
   }
 
   @Public()
@@ -120,9 +130,13 @@ export class UsersController {
   @ApiForbiddenResponse({
     description: 'Nível de acesso insuficiente'
   })
-  async update(@Req() request: RequestWithUser, @Body() updateUserDto: UpdateUserDto) {
-    const result = this.usersService.update(request, updateUserDto);
-    return result;
+  async update(
+    @Req() request: RequestWithUser,
+    @Body() updateUserDto: UpdateUserDto,
+    @Res() response: Response
+  ) {
+    const res = await this.usersService.update(request, updateUserDto);
+    return response.status(res.status).send(res);
   }
 
   @Public()
@@ -140,9 +154,13 @@ export class UsersController {
   @ApiForbiddenResponse({
     description: 'Nível de acesso insuficiente'
   })
-  async updateAvailability(@Req() request: RequestWithUser, @Body() updateAvailabilityDto: UpdateAvailabilityDto) {
-    const result = this.usersService.updateAvailability(request, updateAvailabilityDto);
-    return result;
+  async updateAvailability(
+    @Req() request: RequestWithUser,
+    @Body() updateAvailabilityDto: UpdateAvailabilityDto,
+    @Res() response: Response
+  ) {
+    const res = await this.usersService.updateAvailability(request, updateAvailabilityDto);
+    return response.status(res.status).send(res);
   }
 
   @Public()
@@ -160,8 +178,8 @@ export class UsersController {
   @ApiForbiddenResponse({
     description: 'Nível de acesso insuficiente'
   })
-  async deleteUser(@Param('id') id: string) {
-    const result = this.usersService.remove(id);
-    return result;
+  async deleteUser(@Param('id') id: string, @Res() response: Response) {
+    const res = await this.usersService.remove(id);
+    return response.status(res.status).send(res);
   }
 }

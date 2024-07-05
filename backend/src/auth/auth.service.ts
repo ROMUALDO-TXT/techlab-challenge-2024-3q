@@ -32,16 +32,17 @@ export class AuthService {
     if (!confirmPassword) {
       throw new UnauthorizedException(`Senha incorreta`);
     }
-    
+
     const isConsumer = await this.dataSource.manager.findOne(Consumer, {
-      where:{
+      where: {
         user: user,
       }
     });
 
     delete user.password;
-    
-    if(isConsumer) return {
+    console.log(user);
+
+    if (isConsumer) return {
       token: this.signToken(user),
       id: user.id,
       email: user.email,
@@ -52,14 +53,17 @@ export class AuthService {
 
 
     return {
+      status: 200,
       token: this.signToken(user),
-      id: user.id,
-      email: user.email,
-      profileId: user.profile.id,
-      username: user.username,
+      data: {
+        id: user.id,
+        email: user.email,
+        profileId: user.profile.id,
+        username: user.username,
+      }
     };
   }
-  
+
   signToken(user: User) {
     const subject = {
       sub: JSON.stringify({
@@ -75,7 +79,7 @@ export class AuthService {
   async verifyPayload(payload: jwtPayload) {
     const decoded = JSON.parse(payload.sub) as UserSub;
     const user = await this.dataSource.manager.findOne(User, {
-      where:{
+      where: {
         id: decoded.id,
         username: decoded.username,
         email: decoded.email

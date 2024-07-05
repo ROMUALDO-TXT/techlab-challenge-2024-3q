@@ -50,15 +50,31 @@ export class UsersService extends ServiceBaseClass {
 
       if (result) {
         this.logger.log("info", `[CREATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
+        return {
+          status: 201,
+          data: result
+        };
       }
-      return result;
 
-    } catch (err) {
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
-      }
+      throw new InternalServerErrorException(
+        'Não foi possível concluir a operação',
+      );
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode || 500,
+        message: error.message,
+        error: error,
+      };
     }
   }
 
@@ -87,13 +103,7 @@ export class UsersService extends ServiceBaseClass {
         data: Pagination.create(data, totalItems, page, limit),
       };
     } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
+
 
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
@@ -132,13 +142,7 @@ export class UsersService extends ServiceBaseClass {
         data: Pagination.create(data, totalItems, page, limit),
       };
     } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
+
 
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
@@ -177,13 +181,7 @@ export class UsersService extends ServiceBaseClass {
         data: data,
       };
     } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
+
 
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
@@ -223,13 +221,7 @@ export class UsersService extends ServiceBaseClass {
         data: data,
       };
     } catch (error) {
-      if (!(error as any).status) {
-        console.log(error)
-        return {
-          status: 500,
-          message: 'internal server error'
-        }
-      }
+
 
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
 
@@ -242,63 +234,95 @@ export class UsersService extends ServiceBaseClass {
   }
 
   async update({ user }: RequestWithUser, updateUserDto: UpdateUserDto) {
-    const userExists = await this.dataSource.manager.findOne(User, {
-      where: {
-        id: updateUserDto.id,
-      }
-    })
-
-    if (!userExists) throw new NotFoundException('User not found');
-
-    let renewToken = false;
-    if (user.id === userExists.id) renewToken = true;
-
-    const queryRunner = this.dataSource.createQueryRunner();
-
-    let result: User;
-    let token: string;
-
-    await queryRunner.startTransaction();
-
     try {
-      const updateUser = Object.assign({}, userExists);
+      const userExists = await this.dataSource.manager.findOne(User, {
+        where: {
+          id: updateUserDto.id,
+        }
+      })
 
-      Object.assign(updateUser, updateUserDto);
+      if (!userExists) throw new NotFoundException('User not found');
 
-      result = await queryRunner.manager.save(User, updateUser);
+      let renewToken = false;
+      if (user.id === userExists.id) renewToken = true;
 
-      await queryRunner.commitTransaction();
+      const queryRunner = this.dataSource.createQueryRunner();
 
-      if (renewToken) {
-        const subject = {
-          sub: JSON.stringify({
-            id: user.id,
-            email: user.email,
-            profileId: user.profile.id,
-            username: user.username,
-          }),
-        };
+      let result: User;
+      let token: string;
 
-        token = this.jwtService.sign(subject);
+      await queryRunner.startTransaction();
+
+      try {
+        const updateUser = Object.assign({}, userExists);
+
+        Object.assign(updateUser, updateUserDto);
+
+        result = await queryRunner.manager.save(User, updateUser);
+
+        await queryRunner.commitTransaction();
+
+        if (renewToken) {
+          const subject = {
+            sub: JSON.stringify({
+              id: user.id,
+              email: user.email,
+              profileId: user.profile.id,
+              username: user.username,
+            }),
+          };
+
+          token = this.jwtService.sign(subject);
+        }
+        delete result.password;
+        delete userExists.password;
+
+      } catch (err) {
+        await queryRunner.rollbackTransaction();
+        throw err;
+      } finally {
+        await queryRunner.release();
       }
-      delete result.password;
-      delete userExists.password;
 
       if (result) {
-        this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: old: ${JSON.stringify(userExists)} | new: ${JSON.stringify(result)}`);
-      }
-    } catch (err) {
+        this.logger.log(
+          'info',
+          `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`,
+        );
 
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
+        if (renewToken) return {
+          status: 200,
+          token,
+          data: result
+        };
+
+        return {
+          status: 200,
+          data: result
+        }
       }
-    } finally {
-      await queryRunner.release();
+
+      throw new InternalServerErrorException(
+        'Não foi possível concluir a operação',
+      );
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode ||
+          500,
+        message: error.message || error.response.message,
+        error: error,
+      };
     }
-    if (renewToken) return { token, result };
-    return { result }
   }
 
   async updateAvailability({ user }: RequestWithUser, { available }: UpdateAvailabilityDto) {
@@ -309,60 +333,105 @@ export class UsersService extends ServiceBaseClass {
         available: available
       });
 
-
       if (result.affected > 0) {
-        this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]`);
-      }
-    } catch (err) {
+        this.logger.log(
+          'info',
+          `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: id: ${user.id}`,
+        );
 
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
+        return {
+          status: 200,
+          data: result,
+          message: 'deleted',
+        };
       }
+
+      throw new InternalServerErrorException(
+        'Não foi possível concluir a operação',
+      );
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode ||
+          500,
+        message: error.message || error.response.message,
+        error: error,
+      };
     }
   }
 
+
   async remove(id: string) {
-    const userExists = await this.dataSource.manager.findOne(User, {
-      where: {
-        id: id,
-      }
-    })
-
-    if (!userExists) throw new NotFoundException('User not found');
-
-    const queryRunner = this.dataSource.createQueryRunner();
-
-    let result: UpdateResult;
-
-    await queryRunner.startTransaction();
-
     try {
-
-      const result = await queryRunner.manager.softDelete(User, {
-        id: userExists.id
+      const userExists = await this.dataSource.manager.findOne(User, {
+        where: {
+          id: id,
+        }
       })
 
-      if (result.affected == 0) {
-        throw new InternalServerErrorException()
+      if (!userExists) throw new NotFoundException('User not found');
+
+      const queryRunner = this.dataSource.createQueryRunner();
+
+      let result: UpdateResult;
+
+      await queryRunner.startTransaction();
+
+      try {
+        result = await queryRunner.manager.softDelete(User, {
+          id: userExists.id
+        })
+
+        await queryRunner.commitTransaction();
+      } catch (err) {
+        await queryRunner.rollbackTransaction();
+        throw err;
+      } finally {
+        await queryRunner.release();
       }
 
-      await queryRunner.commitTransaction();
+      if (result.affected > 0) {
+        this.logger.log(
+          'info',
+          `[DELETED - ${this.constructor.name} | ${this.getFunctionName()}]: id: ${id}`,
+        );
 
-      delete userExists.password;
-
-      this.logger.log("info", `[DELETED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(userExists)}`);
-
-    } catch (err) {
-      if (err.status == 404) throw new NotFoundException(err.message);
-      if (err) {
-        this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(err)}`);
-        throw new Error(err);
+        return {
+          status: 200,
+          data: result,
+          message: 'deleted',
+        };
       }
-    } finally {
-      await queryRunner.release();
+
+      throw new InternalServerErrorException(
+        'Não foi possível concluir a operação',
+      );
+    } catch (error) {
+      this.logger.log(
+        'error',
+        `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      return {
+        status:
+          error.status ||
+          error.code ||
+          error.statusCode ||
+          500,
+        message: error.message || error.response.message,
+        error: error,
+      };
     }
-    return result;
   }
 }
