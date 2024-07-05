@@ -15,6 +15,7 @@ export class PermissionsGuard implements CanActivate {
     private reflector: Reflector,
     private dataSource: DataSource,
   ) { }
+  
   async canActivate(context: any): Promise<boolean> {
     const requiredPermissions =
       this.reflector.getAllAndMerge<String[]>('permissions', [
