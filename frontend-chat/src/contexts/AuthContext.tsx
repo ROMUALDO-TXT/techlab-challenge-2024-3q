@@ -32,12 +32,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     const signIn = async (email: string, password: string) => {
         try {
-            const response = await api.post('/auth', { email, password });
+            const response = await api.post('/auth/chat', { email, password });
             console.log(response);
-            const { token, user } = response.data;
+            const { token, data } = response.data;
 
             setCookie('techlab-chat-token', token, { maxAge: 60 * 60 * 24 * 10, path: '/' });
-            setCookie('techlab-chat-user', user, { maxAge: 60 * 60 * 24 * 10, path: '/' });
+            setCookie('techlab-chat-user', data, { maxAge: 60 * 60 * 24 * 10, path: '/' });
             api.defaults.headers['Authorization'] = `Bearer ${token}`;
 
             return { statusCode: 200, body: "success" };

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useFormik } from 'formik';
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import * as Yup from 'yup';
 import { Container, Box, Typography, TextField, Button, CircularProgress, Grid } from "@mui/material";
 

@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { useState } from "react";
 import { useFormik } from 'formik'
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import * as Yup from 'yup';
 import { Container, Box, Typography, TextField, Button, CircularProgress } from "@mui/material";
 
@@ -32,7 +32,7 @@ export default function LoginForm() {
         const response = await signIn(e.email, e.password);
         if (response.statusCode === 200) {
           setIsLoading(false);
-          window.location.reload();
+          window.location.replace('/');
         } else {
           if (response.message) {
             setError(response.message)
