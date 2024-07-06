@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
-import { Profile } from "./Profile.js";
+import { Profiles } from "../constants/profiles";
 
 @Entity('users')
 export class User {
@@ -20,9 +20,10 @@ export class User {
   })
   available: boolean
 
-  @ManyToOne(() => Profile)
-  @JoinTable()
-  profile: Profile;
+  @Column({
+    default: 'standard'
+  })
+  profile: Profiles;
 
   @CreateDateColumn()
   createdAt: Date

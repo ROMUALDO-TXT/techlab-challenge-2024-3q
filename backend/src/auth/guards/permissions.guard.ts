@@ -4,21 +4,15 @@ import { Request } from 'express';
 import { verify } from 'jsonwebtoken';
 import { jwtPayload } from '../interfaces/jwt-payload.interface';
 import { UserSub } from '../interfaces/user-sub.interface';
-import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/domain/entities/User';
-import { DataSource, Repository } from 'typeorm';
-import { Profile } from 'src/domain/entities/Profile';
+import { Profiles } from 'src/domain/constants/profiles';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
-  constructor(
-    private reflector: Reflector,
-    private dataSource: DataSource,
-  ) { }
-  
+  constructor(private reflector: Reflector) { }
+
   async canActivate(context: any): Promise<boolean> {
-    const requiredPermissions =
-      this.reflector.getAllAndMerge<String[]>('permissions', [
+    const roles =
+      this.reflector.getAllAndMerge<Profiles[]>('profiles', [
         context.getClass(),
         context.getHandler(),
       ]) || [];
@@ -28,25 +22,21 @@ export class PermissionsGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (!requiredPermissions || isPublic) {
+    if (!roles || isPublic) {
       return true;
     }
+
+    let isAllowed = false;
 
     const request = context.switchToHttp().getRequest() as Request;
     const [, token] = request.headers.authorization.split(' ');
     const decodedToken = verify(token, process.env.APP_SECRET) as jwtPayload;
     const decoded = JSON.parse(decodedToken.sub) as UserSub;
-    const profile = await this.dataSource.manager.findOne(Profile,{
-      where: {
-        id: decoded.profileId,
-      },
-      relations: {
-        permissions: true,
-      },
-    });
 
-    return requiredPermissions.every(permission =>
-      profile.permissions.some(userPermission => userPermission.name === permission),
-    );
+    if (roles.includes(decoded.profile as Profiles)) {
+      isAllowed = true;
+    }
+
+    return isAllowed;
   }
 }

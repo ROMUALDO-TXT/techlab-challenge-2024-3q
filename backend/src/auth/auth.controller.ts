@@ -8,10 +8,10 @@ import { Response } from 'express';
 @ApiTags('Autenticação')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
-  @Public()  
-  @Post()
+  @Public()
+  @Post('backoffice')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Login realizado com sucesso'
@@ -19,8 +19,22 @@ export class AuthController {
   @ApiUnauthorizedResponse({
     description: 'Login/senha inválidos'
   })
-  async login(@Body() loginDto: LoginDto, @Res() response: Response) {
-    const res = await this.authService.login(loginDto);
+  async loginBackOffice(@Body() loginDto: LoginDto, @Res() response: Response) {
+    const res = await this.authService.loginBackOffice(loginDto);
     return response.status(res.status).send(res);
-}
+  }
+
+  @Public()
+  @Post('chat')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    description: 'Login realizado com sucesso'
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Login/senha inválidos'
+  })
+  async loginChat(@Body() loginDto: LoginDto, @Res() response: Response) {
+    const res = await this.authService.loginChat(loginDto);
+    return response.status(res.status).send(res);
+  }
 }

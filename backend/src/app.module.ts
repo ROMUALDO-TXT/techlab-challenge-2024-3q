@@ -15,8 +15,6 @@ import { ConversationMessage } from './domain/entities/ConversationMessage';
 import { Consumer } from './domain/entities/Consumer';
 import { ConversationsModule } from './conversations/conversations.module';
 import { ConsumersModule } from './consumers/consumers.module';
-import { Profile } from './domain/entities/Profile';
-import { Permission } from './domain/entities/permission';
 import { JwtModule } from '@nestjs/jwt';
 import { WsJwtGuard } from './auth/guards/ws-jwt-auth.guard';
 
@@ -38,10 +36,8 @@ import { WsJwtGuard } from './auth/guards/ws-jwt-auth.guard';
         Consumer,
         Conversation,
         ConversationMessage,
-        Permission,
-        Profile
       ],
-      logging: true,
+      logging: false,
       synchronize: true,
     }),
     WinstonModule.forRoot({

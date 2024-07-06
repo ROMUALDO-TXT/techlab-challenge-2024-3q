@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { User } from "./User";
+import { Profiles } from "../constants/profiles";
 
 @Entity('consumers')
 export class Consumer {
@@ -15,13 +16,20 @@ export class Consumer {
   @Column('character varying', { unique: true })
   document: string
 
+  @Column({ unique: true })
+  email: string
+
+  @Column()
+  password: string
+
   @Column('timestamp without time zone', { nullable: true })
   birthDate: Date | null
 
-  @OneToOne(() => User)
-  @JoinColumn()
-  user: User;
-  
+  @Column({
+    default: 'consumer'
+  })
+  profile: Profiles;
+
   @CreateDateColumn()
   createdAt: Date
 
