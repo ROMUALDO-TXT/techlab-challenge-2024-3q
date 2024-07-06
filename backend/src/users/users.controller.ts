@@ -4,7 +4,6 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateAvailabilityDto, UpdateUserDto } from './dto/update-user.dto';
 import { ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
-import { Permissions } from 'src/auth/decorators/roles.decorator';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { SearchUserDto } from './dto/search-user.dto';
 import { Response } from 'express';
@@ -14,7 +13,6 @@ import { Response } from 'express';
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
-  // @Permissions('users:*', 'users:write')
   @Public()
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -27,7 +25,6 @@ export class UsersController {
   }
 
   @Get('')
-  @Permissions('*')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'

@@ -1,12 +1,12 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Query, Req, Res } from '@nestjs/common';
 import { ConsumersService } from './consumers.service';
-import { ApiCreatedResponse, ApiOkResponse, ApiNotFoundResponse, ApiUnauthorizedResponse, ApiForbiddenResponse } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOkResponse, ApiNotFoundResponse, ApiUnauthorizedResponse, ApiForbiddenResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
 import { CreateConsumerDto } from './dto/create-consumer.dto';
 import { Response } from 'express';
 
-
+@ApiTags("Consumidores")
 @Controller('consumers')
 export class ConsumersController {
   constructor(private readonly consumersService: ConsumersService) { }

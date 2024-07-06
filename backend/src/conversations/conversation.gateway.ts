@@ -14,8 +14,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     constructor(
         private readonly conversationsService: ConversationsService
     ) { }
-    
-    @UseGuards(WsJwtGuard)
+
     async handleConnection(client: Socket) {
         console.log('Client connected:', client.id);
     }
@@ -23,12 +22,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     handleDisconnect(client: Socket) {
         console.log('Client disconnected:', client.id);
     }
-    
+
+    @SubscribeMessage('typing')
+    async handleTyping(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
+        this.server.emit('isTyping', {
+            conversationId: data.conversationId,
+            user: data.user
+        }) 
+    }
+
     @UseGuards(WsJwtGuard)
     @SubscribeMessage('sendMessage')
     async handleMessage(@MessageBody() message: AddMessageDto, @ConnectedSocket() client: Socket) {
-        console.log('Message received:', message)
         const savedMessage = await this.conversationsService.addMessage(message);
-        this.server.to(savedMessage.data.conversation.id).emit('message', savedMessage);
+        this.server.emit('message', {
+            id: savedMessage.data.id,
+            content: savedMessage.data.content,
+            by: savedMessage.data.by,
+            conversationId: savedMessage.data.conversation.id,
+            createdAt: savedMessage.data.createdAt,
+        });
     }
 }

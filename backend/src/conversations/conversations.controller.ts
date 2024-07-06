@@ -5,10 +5,10 @@ import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
-import { Permissions } from 'src/auth/decorators/roles.decorator';
 import { AddMessageDto } from './dto/add-message.dto';
 import { AssignConversationDto } from './dto/assign-conversation.dto';
 import { Response } from 'express';
+import { ProfilesAllowed } from 'src/auth/decorators/profiles.decorator';
 
 @ApiTags("Conversations")
 @Controller('conversations')
@@ -77,8 +77,8 @@ export class ConversationsController {
     return response.status(res.status).send(res);
   }
 
-  @Permissions('*')
   @Get('')
+  @ProfilesAllowed('consumer')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'

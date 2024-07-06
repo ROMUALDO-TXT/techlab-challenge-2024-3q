@@ -1,17 +1,15 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsString, IsUUID } from 'class-validator';
 import { ConversationMessageBy } from 'src/domain/entities/ConversationMessage';
 
 
 export class AddMessageDto {
-  @IsNotEmpty()
-  @IsString()
+  @ApiProperty()
   content!: string;
 
-  @IsNotEmpty()
-  @IsEnum(ConversationMessageBy)
+  @ApiProperty()
   by!: ConversationMessageBy;
-
-  @IsNotEmpty()
-  @IsUUID()
+  
+  @ApiProperty()
   conversationId!: string;
 }

@@ -5,12 +5,12 @@ import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { DataSource, UpdateResult } from 'typeorm';
 import { Logger } from 'winston';
 import { ServiceBaseClass } from 'src/domain/helpers/service.class';
-import { Profile } from 'src/domain/entities/Profile';
 import { User } from 'src/domain/entities/User';
 import { hash } from 'bcrypt';
 import { Consumer } from 'src/domain/entities/Consumer';
 import { JwtService } from '@nestjs/jwt';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
+import { Profiles } from 'src/domain/constants/profiles';
 
 @Injectable()
 export class ConsumersService extends ServiceBaseClass {
@@ -25,12 +25,6 @@ export class ConsumersService extends ServiceBaseClass {
 
   async create(createConsumerDto: CreateConsumerDto) {
     try {
-      const consumerProfile = await this.dataSource.manager.findOne(Profile, {
-        where: {
-          name: 'Consumer'
-        }
-      })
-
       const emailExists = await this.dataSource.manager.findOne(User, {
         where: {
           email: createConsumerDto.email,
@@ -55,27 +49,19 @@ export class ConsumersService extends ServiceBaseClass {
       try {
         const pswd = await hash(createConsumerDto.password, 8);
 
-        const user = await queryRunner.manager.save(User,
-          queryRunner.manager.create(User, {
-            username: createConsumerDto.firstName + "." + createConsumerDto.lastName + "@" + Math.floor(100000 + Math.random() * 900000),
-            email: createConsumerDto.email,
-            password: pswd,
-            profile: consumerProfile,
-          })
-        );
-
         result = await queryRunner.manager.save(Consumer,
           queryRunner.manager.create(Consumer, {
             firstName: createConsumerDto.firstName,
             lastName: createConsumerDto.lastName,
             document: createConsumerDto.document,
             birthDate: createConsumerDto.birthDate,
-            user: user,
+            email: createConsumerDto.email,
+            password: pswd,
           })
         );
 
         await queryRunner.commitTransaction()
-        delete result.user.password;
+        delete result.password;
 
       } catch (err) {
         await queryRunner.rollbackTransaction();
@@ -87,10 +73,9 @@ export class ConsumersService extends ServiceBaseClass {
       this.logger.log("info", `[CREATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
       const subject = {
         sub: JSON.stringify({
-          id: result.user.id,
-          email: result.user.email,
-          profileId: result.user.profile.id,
-          username: result.user.username,
+          id: result.id,
+          email: result.email,
+          profile: result.profile,
         }),
       };
 
@@ -99,7 +84,12 @@ export class ConsumersService extends ServiceBaseClass {
       return {
         status: 201,
         token: token,
-        user: result,
+        data: {
+          id: result.id,
+          email: result.email,
+          profile: result.profile,
+          name: result.firstName,
+        }
       }
 
     } catch (error) {
@@ -131,9 +121,7 @@ export class ConsumersService extends ServiceBaseClass {
           id: true,
           firstName: true,
           lastName: true,
-          user: {
-            email: true,
-          }
+          email: true,
         },
         skip: (page - 1) * limit,
         take: limit,
@@ -167,9 +155,7 @@ export class ConsumersService extends ServiceBaseClass {
           id: true,
           firstName: true,
           lastName: true,
-          user: {
-            email: true,
-          }
+          email: true,
         },
       })
 
@@ -191,13 +177,8 @@ export class ConsumersService extends ServiceBaseClass {
   async findSelf({ user }: RequestWithUser) {
     try {
       const data = await this.dataSource.manager.findOne(Consumer, {
-        relations: {
-          user: true,
-        },
         where: {
-          user: {
-            id: user.id
-          }
+          id: user.id
         }
       });
 
@@ -296,18 +277,6 @@ export class ConsumersService extends ServiceBaseClass {
         results = await queryRunner.manager.softDelete(Consumer, {
           id: consumerExists.id
         })
-
-        if (results.affected == 0) {
-          throw new InternalServerErrorException()
-        }
-
-        results = await queryRunner.manager.softDelete(User, {
-          id: consumerExists.user.id
-        })
-
-        if (results.affected == 0) {
-          throw new InternalServerErrorException()
-        }
 
         await queryRunner.commitTransaction();
       } catch (err) {

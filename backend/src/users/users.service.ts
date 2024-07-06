@@ -9,10 +9,8 @@ import { hash } from 'bcrypt';
 import { User } from 'src/domain/entities/User';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
 import { JwtService } from '@nestjs/jwt';
-import { profiles } from 'src/domain/constants/profiles';
 import { Pagination } from 'src/domain/helpers/pagination.dto';
 import { SearchUserDto } from './dto/search-user.dto';
-import { Profile } from 'src/domain/entities/Profile';
 
 @Injectable()
 export class UsersService extends ServiceBaseClass {
@@ -26,21 +24,13 @@ export class UsersService extends ServiceBaseClass {
   }
   async create(createUserDto: CreateUserDto) {
     try {
-      const profileExists = await this.dataSource.manager.findOne(Profile, {
-        where: {
-          id: createUserDto.profile,
-        }
-      })
-
-      if (!profileExists) throw new NotFoundException('Profile not found');;
-
       const pswd = await hash(createUserDto.password, 8);
 
       const user = this.dataSource.manager.create(User, {
         username: createUserDto.username,
         email: createUserDto.email,
         password: pswd,
-        profile: profileExists,
+        profile: createUserDto.profile,
         available: true,
       });
 
@@ -124,14 +114,8 @@ export class UsersService extends ServiceBaseClass {
         select: {
           id: true,
           username: true,
-          profile: {
-            id: true,
-            name: true,
-          },
-          email: true,
-        },
-        relations: {
           profile: true,
+          email: true,
         },
         skip: (page - 1) * limit,
         take: limit,
@@ -160,15 +144,10 @@ export class UsersService extends ServiceBaseClass {
         select: {
           id: true,
           username: true,
-          profile: {
-            id: true,
-            name: true,
-          },
+          profile: true,
           email: true,
         },
-        relations: {
-          profile: true,
-        },
+
         where: {
           id: id
         }
@@ -199,15 +178,8 @@ export class UsersService extends ServiceBaseClass {
         select: {
           id: true,
           username: true,
-          profile: {
-            id: true,
-            name: true,
-            permissions: true,
-          },
-          email: true,
-        },
-        relations: {
           profile: true,
+          email: true,
         },
         where: {
           id: user.id
@@ -267,7 +239,7 @@ export class UsersService extends ServiceBaseClass {
             sub: JSON.stringify({
               id: user.id,
               email: user.email,
-              profileId: user.profile.id,
+              profileId: user.profile,
               username: user.username,
             }),
           };

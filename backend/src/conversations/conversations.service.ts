@@ -28,13 +28,18 @@ export class ConversationsService extends ServiceBaseClass {
 
   async create(createConversationDto: CreateConversationDto) {
     try {
-      const userExists = await this.dataSource.manager.findOne(User, {
-        where: {
-          id: createConversationDto.userId
-        }
-      });
 
-      if (!userExists) throw new NotFoundException("User not found");
+      let userExists: User;
+
+      if (createConversationDto.userId) {
+        userExists = await this.dataSource.manager.findOne(User, {
+          where: {
+            id: createConversationDto.userId
+          }
+        });
+
+        if (!userExists) throw new NotFoundException("User not found");
+      }
 
       const consumerExists = await this.dataSource.manager.findOne(Consumer, {
         where: {
@@ -45,7 +50,7 @@ export class ConversationsService extends ServiceBaseClass {
       if (!consumerExists) throw new NotFoundException("Consumer not found");
 
       const conversation = this.dataSource.manager.create(Conversation, {
-        user: userExists,
+        user: userExists || undefined,
         consumer: consumerExists,
         subject: createConversationDto.subject,
         status: 'pending'
@@ -286,6 +291,7 @@ export class ConversationsService extends ServiceBaseClass {
 
   async addMessage(addMessageDto: AddMessageDto) {
     try {
+
       const conversationExists = await this.dataSource.manager.findOne(Conversation, {
         where: {
           id: addMessageDto.conversationId,
@@ -363,38 +369,66 @@ export class ConversationsService extends ServiceBaseClass {
     try {
       page = page > 0 ? page : 1;
       limit = limit > 0 ? limit : 25;
-      const [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
-        relations: { consumer: true },
-        where: {
-          user: {
-            id: user.id
+      let data: Conversation[];
+      let totalItems: number;
+
+      if (user.profile !== 'consumer') {
+        [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
+          relations: { consumer: true },
+          where: {
+            user: {
+              id: user.id
+            }
+          },
+          skip: (page - 1) * limit,
+          take: limit,
+        })
+      } else {
+        [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
+          relations: { consumer: true },
+          where: {
+            consumer: {
+              id: user.id
+            }
+          },
+          skip: (page - 1) * limit,
+          take: limit,
+        })
+      }
+
+      const lastMessages = await Promise.all(data.map((c) =>
+        this.dataSource.manager.findOne(ConversationMessage, {
+          select: {
+            conversation: {
+              id: true,
+            },
+          },
+          where: {
+            conversation: {
+              id: c.id
+            }
+          },
+          order: {
+            createdAt: 'DESC',
+          },
+          relations: {
+            conversation: true,
           }
-        },
-        skip: (page - 1) * limit,
-        take: limit,
+        }))
+      )
+
+      let result = data.map((d) => {
+        let lastMessage = lastMessages.find((m) => m?.conversation.id === d.id);
+        if (lastMessage) Object.assign(d, { lastMessage, ...d });
+        return d
       })
-
-      const lastMessages = await Promise.all(data.map((c) => this.dataSource.manager.findOne(ConversationMessage, {
-        where: {
-          conversation: c
-        },
-        order: {
-          createdAt: 'DESC',
-        }
-      })))
-
-      let result = data.map((data) => {
-        let lastMessage = lastMessages.find((m) => m.conversation === data);
-        Object.assign(data, { lastMessage, ...data });
-        return data
-      })
-
       return {
         status: 200,
         data: Pagination.create(result, totalItems, page, limit),
       };
     } catch (error) {
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
+      console.log(error);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error) || error}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,
@@ -458,15 +492,19 @@ export class ConversationsService extends ServiceBaseClass {
         skip: (page - 1) * limit,
         take: limit,
         order: {
-          createdAt: 'ASC'
+          createdAt: 'DESC'
         }
       })
+
+      const sortedMessages = messages.sort((a, b) => {
+        return a.createdAt.getTime() - b.createdAt.getTime();
+      });
 
       return {
         status: 200,
         data: {
           conversation,
-          messages: Pagination.create(messages, count, page, limit)
+          messages: Pagination.create(sortedMessages, count, page, limit)
         },
       };
     } catch (error) {
@@ -515,7 +553,7 @@ export class ConversationsService extends ServiceBaseClass {
         this.logger.log("info", `[DELETED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(conversationExists)}`);
         return {
           status: 200,
-          data:result
+          data: result
         };
       }
 
