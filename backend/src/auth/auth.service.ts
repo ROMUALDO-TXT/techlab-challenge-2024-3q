@@ -43,7 +43,7 @@ export class AuthService {
       data: {
         id: user.id,
         email: user.email,
-        profileId: user.profile,
+        profile: user.profile,
         username: user.username,
       }
     };

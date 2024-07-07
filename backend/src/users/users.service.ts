@@ -148,10 +148,6 @@ export class UsersService extends ServiceBaseClass {
         data: Pagination.create(result, totalItems, page, limit),
       };
 
-      return {
-        status: 200,
-        data: Pagination.create(data, totalItems, page, limit),
-      };
     } catch (error) {
 
 
@@ -207,6 +203,36 @@ export class UsersService extends ServiceBaseClass {
           username: true,
           profile: true,
           email: true,
+        },
+        where: {
+          id: user.id
+        }
+      });
+
+      if (!data) throw new NotFoundException('User not found');
+
+      return {
+        status: 200,
+        data: data,
+      };
+    } catch (error) {
+
+
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(error)}`);
+
+      return {
+        status: error.status || error.code || error.statusCode || 500,
+        message: error.message || error.response.message,
+        error: error,
+      };
+    }
+  }
+
+  async getAvailabilityStatus({ user }: RequestWithUser) {
+    try {
+      const data = await this.dataSource.manager.findOne(User, {
+        select: {
+          available: true,
         },
         where: {
           id: user.id
@@ -324,10 +350,12 @@ export class UsersService extends ServiceBaseClass {
     }
   }
 
-  async updateAvailability({ user }: RequestWithUser, { available }: UpdateAvailabilityDto) {
+  async updateAvailability(userId: string, { available }: UpdateAvailabilityDto) {
     try {
+      console.log(userId);
+
       const result = await this.dataSource.manager.update(User, {
-        id: user.id,
+        id: userId,
       }, {
         available: available
       });
@@ -335,12 +363,12 @@ export class UsersService extends ServiceBaseClass {
       if (result.affected > 0) {
         this.logger.log(
           'info',
-          `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: id: ${user.id}`,
+          `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: id: ${userId}`,
         );
 
         return {
           status: 200,
-          data: result,
+          data: available,
           message: 'deleted',
         };
       }

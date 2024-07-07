@@ -25,7 +25,7 @@ export class UsersController {
     return response.status(res.status).send(res);
   }
 
-  @Get('self')
+  @Get('availability')
   @ProfilesAllowed('sudo', 'standard')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
@@ -41,7 +41,7 @@ export class UsersController {
     description: 'Nível de acesso insuficiente'
   })
   async findSelf(@Req() request: RequestWithUser, @Res() response: Response) {
-    const res = await this.usersService.findSelf(request);
+    const res = await this.usersService.getAvailabilityStatus(request);
     return response.status(res.status).send(res);
   }
 
@@ -158,9 +158,30 @@ export class UsersController {
     @Body() updateAvailabilityDto: UpdateAvailabilityDto,
     @Res() response: Response
   ) {
-    const res = await this.usersService.updateAvailability(request, updateAvailabilityDto);
+    const res = await this.usersService.updateAvailability(request.user.id, updateAvailabilityDto);
     return response.status(res.status).send(res);
   }
+
+  @Get('availability')
+  @ProfilesAllowed('sudo', 'standard')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    description: 'Registro encontrado'
+  })
+  @ApiNotFoundResponse({
+    description: 'Registro não encontrado'
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Usuário não autenticado'
+  })
+  @ApiForbiddenResponse({
+    description: 'Nível de acesso insuficiente'
+  })
+  async getAvailabilityStatus(@Req() request: RequestWithUser, @Res() response: Response) {
+    const res = await this.usersService.findSelf(request);
+    return response.status(res.status).send(res);
+  }
+
 
   @ProfilesAllowed('sudo')
   @Delete(':id')

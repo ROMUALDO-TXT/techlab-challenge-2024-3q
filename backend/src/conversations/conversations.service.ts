@@ -17,7 +17,7 @@ import { RateConversationDto } from './dto/rate-conversation.dto';
 import { FinishConversationDto } from './dto/finish-conversation.dto';
 
 interface IAssignConversation {
-  conversationId: string,
+  conversation: Conversation,
   userId: string,
   username: string,
 }
@@ -59,7 +59,8 @@ export class ConversationsService extends ServiceBaseClass {
         user: userExists || undefined,
         consumer: consumerExists,
         subject: createConversationDto.subject,
-        status: 'pending'
+        status: 'pending',
+        createdAt: new Date()
       });
 
       const result = await this.dataSource.manager.save(Conversation, conversation);
@@ -93,28 +94,18 @@ export class ConversationsService extends ServiceBaseClass {
     }
   }
 
-  async conversationQueue(page: number = 1, limit: number = 25) {
+  async conversationQueue(page: number = 0, limit: number = 25) {
     try {
-      page = page >= 0 ? page : 0;
-      limit = limit > 0 ? limit : 25;
-      const [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
+      const count = await this.dataSource.manager.count(Conversation, {
         where: {
           status: 'pending',
           user: IsNull(),
         },
-        relations: {
-          consumer: true
-        },
-        skip: (page) * limit,
-        take: limit,
-        order: {
-          createdAt: 'ASC',
-        }
       })
 
       return {
         status: 200,
-        data: Pagination.create(data, totalItems, page, limit),
+        data: count
       };
 
     } catch (error) {
@@ -190,26 +181,33 @@ export class ConversationsService extends ServiceBaseClass {
       let results: ConversationMessage[];
       try {
         const promises: (Promise<UpdateResult> | Promise<ConversationMessage>)[] = [];
-        
+
         openConversations.forEach((c) => {
           users = users.filter(user => user.openConversationsCount < 3);
+          
           if (users.length > 0) {
             users.sort((a, b) => a.openConversationsCount - b.openConversationsCount);
             users[0].openConversationsCount++;
+            
+            Object.assign(c, {
+              startedAt: new Date(),
+              status: 'open',              
+            })
 
-            promises.concat(this.assignConversationUser(queryRunner, {
+            const assignPromises = this.assignConversationUser(queryRunner, {
               userId: users[0].userId,
               username: users[0].username,
-              conversationId: c.id
-            }))
+              conversation: c
+            }) 
+
+            promises.push(assignPromises)
           }
         })
 
-        results = (await Promise.all(promises)).filter(x=> x instanceof ConversationMessage);
-
+        const resolved = await Promise.all(promises);
+        results = resolved.filter(x => x instanceof ConversationMessage);
         await queryRunner.commitTransaction();
       } catch (err) {
-        console.log(err);
         await queryRunner.rollbackTransaction();
       } finally {
         await queryRunner.release();
@@ -240,31 +238,21 @@ export class ConversationsService extends ServiceBaseClass {
     }
   }
 
-  private assignConversationUser(queryRunner: QueryRunner, { conversationId, userId, username }: IAssignConversation) {
-    const upadatePromise = queryRunner.manager.update(Conversation, {
-      id: conversationId
-    }, {
-      user: {
-        id: userId
+  private assignConversationUser(queryRunner: QueryRunner, { conversation, userId, username }: IAssignConversation) {
+    const upadatePromise = queryRunner.manager.save(Conversation, {
+      user:{
+        id: userId,
       },
-      startedAt: new Date(),
-      status: 'open',
-    });
-
-    const messagePromise = queryRunner.manager.save(ConversationMessage,
+      ...conversation
+    }).then((updatedConversation) => queryRunner.manager.save(ConversationMessage,
       queryRunner.manager.create(ConversationMessage, {
-        conversation: {
-          id: conversationId,
-        },
+        conversation: updatedConversation,
         by: ConversationMessageBy.System,
         content: `O Agente ${username} foi designado para atender o seu chamado!`
       })
-    )
+    ))
 
-    return [
-      upadatePromise,
-      messagePromise
-    ]
+    return upadatePromise
   }
 
   async finishConversation(finishConversationDto: FinishConversationDto) {
@@ -417,8 +405,8 @@ export class ConversationsService extends ServiceBaseClass {
         },
         skip: (page) * limit,
         take: limit,
-        order:{
-          createdAt:'DESC'
+        order: {
+          createdAt: 'DESC'
         }
       })
 
@@ -447,7 +435,16 @@ export class ConversationsService extends ServiceBaseClass {
 
       if (user.profile !== 'consumer') {
         [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
-          relations: { consumer: true },
+          relations: {
+            consumer: true
+          },
+          select: {
+            consumer: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            }
+          },
           where: {
             user: {
               id: user.id
@@ -456,13 +453,26 @@ export class ConversationsService extends ServiceBaseClass {
           },
           skip: (page) * limit,
           take: limit,
-          order:{
-            createdAt:'DESC'
+          order: {
+            createdAt: 'DESC'
           }
         })
       } else {
         [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
-          relations: { consumer: true },
+          relations: {
+            consumer: true
+          },
+          select: {
+            user: {
+              id: true,
+              username: true,
+            },
+            consumer: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            }
+          },
           where: {
             consumer: {
               id: user.id
@@ -470,8 +480,8 @@ export class ConversationsService extends ServiceBaseClass {
           },
           skip: (page) * limit,
           take: limit,
-          order:{
-            createdAt:'DESC'
+          order: {
+            createdAt: 'DESC'
           }
         })
       }
@@ -501,7 +511,16 @@ export class ConversationsService extends ServiceBaseClass {
 
       if (user.profile !== 'consumer') {
         [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
-          relations: { consumer: true },
+          relations: {
+            consumer: true
+          },
+          select: {
+            consumer: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            }
+          },
           where: {
             user: {
               id: user.id
@@ -510,13 +529,26 @@ export class ConversationsService extends ServiceBaseClass {
           },
           skip: (page) * limit,
           take: limit,
-          order:{
-            createdAt:'DESC'
+          order: {
+            createdAt: 'DESC'
           }
         })
       } else {
         [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
-          relations: { consumer: true },
+          relations: {
+            consumer: true
+          },
+          select: {
+            user: {
+              id: true,
+              username: true,
+            },
+            consumer: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            }
+          },
           where: {
             consumer: {
               id: user.id
@@ -524,8 +556,8 @@ export class ConversationsService extends ServiceBaseClass {
           },
           skip: (page) * limit,
           take: limit,
-          order:{
-            createdAt:'DESC'
+          order: {
+            createdAt: 'DESC'
           }
         })
       }
@@ -551,16 +583,16 @@ export class ConversationsService extends ServiceBaseClass {
         }))
       )
 
-    let result = data.map((d: Conversation & {lastMessage: ConversationMessage}): Conversation & {lastMessage: ConversationMessage} => {
-      let lastMessage = lastMessages.find((m) => m?.conversation.id === d.id);
-      d.lastMessage = lastMessage
-      return d
-    }).sort((a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime());
+      let result = data.map((d: Conversation & { lastMessage: ConversationMessage }): Conversation & { lastMessage: ConversationMessage } => {
+        let lastMessage = lastMessages.find((m) => m?.conversation.id === d.id);
+        d.lastMessage = lastMessage
+        return d
+      }).sort((a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime());
 
-    return {
-      status: 200,
-      data: Pagination.create(result, totalItems, page, limit),
-    };
+      return {
+        status: 200,
+        data: Pagination.create(result, totalItems, page, limit),
+      };
     } catch (error) {
       console.log(error);
       this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error) || error}`);
@@ -573,7 +605,6 @@ export class ConversationsService extends ServiceBaseClass {
     }
   }
 
-
   async findUserCoversations({ user }: RequestWithUser, page: number = 1, limit: number = 25) {
     try {
       page = page >= 0 ? page : 0;
@@ -583,7 +614,17 @@ export class ConversationsService extends ServiceBaseClass {
 
       if (user.profile !== 'consumer') {
         [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
-          relations: { consumer: true },
+          relations: {
+            consumer: true,
+          },
+          select: {
+            user: {
+              password: false,
+            },
+            consumer: {
+              password: false,
+            }
+          },
           where: {
             user: {
               id: user.id
@@ -591,13 +632,27 @@ export class ConversationsService extends ServiceBaseClass {
           },
           skip: (page) * limit,
           take: limit,
-          order:{
-            createdAt:'DESC'
+          order: {
+            createdAt: 'DESC'
           }
         })
       } else {
         [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
-          relations: { consumer: true },
+          relations: {
+            consumer: true,
+            user: true,
+          },
+          select: {
+            user: {
+              id: true,
+              username: true,
+            },
+            consumer: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            }
+          },
           where: {
             consumer: {
               id: user.id
@@ -605,8 +660,8 @@ export class ConversationsService extends ServiceBaseClass {
           },
           skip: (page) * limit,
           take: limit,
-          order:{
-            createdAt:'DESC'
+          order: {
+            createdAt: 'DESC'
           }
         })
       }
@@ -632,7 +687,7 @@ export class ConversationsService extends ServiceBaseClass {
         }))
       )
 
-      let result = data.map((d: Conversation & {lastMessage: ConversationMessage}): Conversation & {lastMessage: ConversationMessage} => {
+      let result = data.map((d: Conversation & { lastMessage: ConversationMessage }): Conversation & { lastMessage: ConversationMessage } => {
         let lastMessage = lastMessages.find((m) => m?.conversation.id === d.id);
         d.lastMessage = lastMessage
         return d
@@ -660,6 +715,13 @@ export class ConversationsService extends ServiceBaseClass {
         relations: {
           consumer: true,
           messages: true,
+        },
+        select: {
+          consumer: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          }
         },
         where: {
           id: id

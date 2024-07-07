@@ -8,6 +8,7 @@ import { AddMessageDto } from './dto/add-message.dto';
 import { Response } from 'express';
 import { ProfilesAllowed } from 'src/auth/decorators/profiles.decorator';
 import { RateConversationDto } from './dto/rate-conversation.dto';
+import { FinishConversationDto } from './dto/finish-conversation.dto';
 
 @ApiTags("Conversations")
 @Controller('conversations')
@@ -37,13 +38,35 @@ export class ConversationsController {
   }
 
   @ProfilesAllowed('sudo', 'standard', 'consumer')
-  @Post('rate')
+  @Patch('rate')
   @HttpCode(HttpStatus.OK)
   @ApiCreatedResponse({
     description: 'Registro criado com sucesso'
   })
   async rateConversation(@Body() rateConversationDto: RateConversationDto, @Res() response: Response) {
     const res = await this.conversationsService.rateConversation(rateConversationDto);
+    return response.status(res.status).send(res);
+  }
+
+  @ProfilesAllowed('sudo', 'standard', 'consumer')
+  @Patch('finish')
+  @HttpCode(HttpStatus.OK)
+  @ApiCreatedResponse({
+    description: 'Registro criado com sucesso'
+  })
+  async finishConversation(@Body() finishConversationDto: FinishConversationDto, @Res() response: Response) {
+    const res = await this.conversationsService.finishConversation(finishConversationDto);
+    return response.status(res.status).send(res);
+  }
+
+  @ProfilesAllowed('sudo', 'standard', 'consumer')
+  @Get('queue')
+  @HttpCode(HttpStatus.OK)
+  @ApiCreatedResponse({
+    description: 'Registro criado com sucesso'
+  })
+  async distributeQueue(@Res() response: Response) {
+    const res = await this.conversationsService.conversationQueue();
     return response.status(res.status).send(res);
   }
 
