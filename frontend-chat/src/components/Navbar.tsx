@@ -12,24 +12,22 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
 interface ISidebarProps {
     conversations: IConversationList[];
-    onSelectConversation: Dispatch<SetStateAction<string>>;
+    onSelectConversation: Dispatch<SetStateAction<IConversationList | undefined>>;
     onCreateNewConversation: () => void;
     socket: Socket;
+    selectedConversation: IConversationList | undefined;
 }
 
-const Navbar = ({ socket, conversations, onCreateNewConversation, onSelectConversation }: ISidebarProps) => {
-
+const Navbar = ({ conversations, selectedConversation, onCreateNewConversation, onSelectConversation }: ISidebarProps) => {
     const [cookies] = useCookies(['techlab-chat-user']);
     const { signOut } = useAuth()
 
-
     return (
         <Box sx={{ display: 'flex' }}>
-
             <AppBar position="static" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
                 <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="h6">
-                        Navbar
+                        TECHLAB - CHAT
                     </Typography>
                     <Box sx={{ display: "flex", alignItems: "baseline" }}>
                         <Typography variant="body1" mr={3}>
@@ -82,16 +80,52 @@ const Navbar = ({ socket, conversations, onCreateNewConversation, onSelectConver
                             Nova conversa
                         </Button>
                     </Box>
+                    <Divider/>
+                    <Typography variant="h6" mt={1} mb={1} align="center">Conversas Recentes</Typography>
                     <Divider />
-                    <List>
-                        <Typography variant="h6" mb={1} align="center">Conversas Recentes</Typography>
-                        <Divider />
+                    <List sx={{
+                        overflowY: 'scroll',
+                        maxHeight: '70%',
+                        paddingBottom: 0,
+                        paddingTop: 0,
+                        '&::-webkit-scrollbar': {
+                            width: '4px',
+                          },
+                          '&::-webkit-scrollbar-track': {
+                            background: '#f1f1f1',
+                          },
+                          '&::-webkit-scrollbar-thumb': {
+                            background: '#888',
+                          },
+                          '&::-webkit-scrollbar-thumb:hover': {
+                            background: '#555',
+                          },
+                          '&::-moz-scrollbar': {
+                            width: '4px',
+                          },
+                          '&::-moz-scrollbar-track': {
+                            background: '#f1f1f1',
+                          },
+                          '&::-moz-scrollbar-thumb': {
+                            background: '#888',
+                          },
+                          '&::-moz-scrollbar-thumb:hover': {
+                            background: '#555',
+                          },
+                    }}>
+
                         {conversations ? conversations.map((conversation, index) => (
-                            <ListItemButton sx={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'flex-start',
-                            }} key={index} onClick={() => onSelectConversation(conversation.id)}>
+                            <ListItemButton
+                                sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'flex-start',
+                                    backgroundColor: conversation.id === selectedConversation?.id ? 'action.hover' : 'inherit',
+                                }}
+                                // active={conversation.id === selectedConversation?.id}
+                                key={index}
+                                onClick={() => onSelectConversation(conversation)}
+                            >
                                 <ListItemText primary={conversation.subject} />
                                 <ListItemText sx={{
                                     display: 'block',
@@ -106,8 +140,8 @@ const Navbar = ({ socket, conversations, onCreateNewConversation, onSelectConver
                     <Divider />
                     {/* theme toggler */}
                 </Box>
-            </Drawer>
-        </Box>
+            </Drawer >
+        </Box >
     );
 };
 

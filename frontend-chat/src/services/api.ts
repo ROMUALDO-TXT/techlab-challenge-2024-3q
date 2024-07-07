@@ -1,4 +1,3 @@
-import { queryOptions } from '@tanstack/react-query';
 import axios from 'axios'
 
 export const api = axios.create({
@@ -58,6 +57,51 @@ export const createConversation = async (subject: string, consumerId: string, co
 
       console.log(x);
     }
+    return response.data;
+  } catch (err) {
+    return err;
+  }
+}
+
+export const rateConversation = async (rating: number, conversationId: string) => {
+  try {
+    const response = await api.post(`/conversations/rate`, {
+      rating,
+      conversationId,
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if(response.status === 201){
+      await api.post('/conversations/message', {
+        content: `Obrigado por avaliar!`,
+        by: "system",
+        conversationId: conversationId,
+      });
+
+    }
+    return response.data;
+  } catch (err) {
+    return err;
+  }
+}
+
+export const displayFile = async (id: string) => {
+  try {
+    const response = await api.get(`/files/preview/${id}`);
+    console.log(response)
+    return response.data;
+  } catch (err) {
+    return err;
+  }
+}
+
+export const downloadFile = async (id: string) => {
+  try {
+    const response = await api.get(`/files/download/${id}`);
+    console.log(response)
     return response.data;
   } catch (err) {
     return err;

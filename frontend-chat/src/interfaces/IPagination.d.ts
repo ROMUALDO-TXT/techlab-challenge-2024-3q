@@ -1,4 +1,5 @@
 import { IConversationList } from "./IConversation";
+import { IMessage } from "./IMessage";
 
 export interface IMessagesPaginationData {
     items: IMessage[];

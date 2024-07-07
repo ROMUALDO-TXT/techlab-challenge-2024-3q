@@ -5,11 +5,12 @@ import * as Yup from 'yup';
 import { createConversation } from "../services/api";
 import { useCookies } from "react-cookie";
 import CloseIcon from '@mui/icons-material/Close';
+import { IConversationList } from "../interfaces/IConversation";
 
 interface IConversationFormProps {
     open: boolean;
     handleClose: () => void;
-    setSelectedConversation: Dispatch<SetStateAction<string>>;
+    setSelectedConversation: Dispatch<SetStateAction<IConversationList | undefined>>;
 }
 const modalStyle = {
     position: 'absolute',
@@ -46,7 +47,7 @@ export const ConversationForm = ({ open, handleClose, setSelectedConversation }:
                 cookies['techlab-chat-user'].name,
             ).then((result) => {
                 setIsLoading(false);
-                setSelectedConversation(result.data.id)
+                setSelectedConversation(result.data)
                 handleClose();
             }).catch((err) => {
                 console.log(err);

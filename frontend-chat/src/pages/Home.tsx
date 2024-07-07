@@ -1,25 +1,31 @@
 import Navbar from '../components/Navbar.tsx';
 import Footer from '../components/Footer.tsx';
 import { Chat } from '../components/Chat.tsx';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { useCookies } from 'react-cookie';
-import { useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useEffect, useRef, useState } from 'react';
 import { getConversations } from '../services/api.ts';
-import { IConversation, IConversationList } from '../interfaces/IConversation';
+import { IConversationList } from '../interfaces/IConversation';
 import { IConversationsPaginationData } from '../interfaces/IPagination';
 import { ConversationForm } from '../components/ConversationForm.tsx';
+import { LikertScale } from '../components/Likert.tsx';
+import chime from '../assets/chime.mp3'
+import { IMessage } from '../interfaces/IMessage';
+import { io, Socket } from 'socket.io-client';
 
 const Home = () => {
     const [refresh, setRefresh] = useState(false);
     let [cookies] = useCookies(['techlab-chat-token'])
-
-    const socket: Socket = io('http://localhost:3000', {
-        auth: {
-            token: "Bearer " + cookies['techlab-chat-token'],
-        },
-        transports: ['websocket'],
-    });
+    const audio = new Audio(chime);
+    const socketRef = useRef<Socket>(
+        io('http://localhost:3000', {
+            auth: {
+                token: "Bearer " + cookies['techlab-chat-token'],
+            },
+            transports: ['websocket'],
+            autoConnect: true,
+        })
+    );
 
     const [conversationData, setConversationData] = useState<IConversationsPaginationData>({
         items: [],
@@ -28,7 +34,7 @@ const Home = () => {
         limit: 0,
     });
     const [conversations, setConversations] = useState<IConversationList[]>([]);
-    const [selectedConversation, setSelectedConversation] = useState<string>("");
+    const [selectedConversation, setSelectedConversation] = useState<IConversationList>();
     const [isConversationModalOpen, setIsConversationModalOpen] = useState<boolean>(false);
 
     const limit = 50;
@@ -41,41 +47,42 @@ const Home = () => {
     }, [limit]);
 
     useEffect(() => {
-        socket.on('connect', () => {
+        socketRef.current.connect();
+
+        console.log(socketRef.current)
+        socketRef.current.on('connect', () => {
             console.log('Connected to WebSocket server');
         });
 
-        socket.on('disconnect', () => {
+        socketRef.current.on('disconnect', () => {
             console.log('Disconnected from WebSocket server');
         });
 
-        socket.on('connect_error', (error) => {
+        socketRef.current.on('connect_error', (error: any) => {
             console.error('Socket connection error:', error);
         });
 
         return () => {
-            socket.disconnect();
+            socketRef.current.disconnect();
         };
-    }, [socket]);
+    }, [socketRef.current]);
 
     useEffect(() => {
-        socket.on('message', (message) => {
-            const updatedConversations = conversations.map((c) => {
-                if (c.id === message.conversationId) {
-                    c.lastMessage.content = message.content;
-                }
-                return c;
+        socketRef.current.on('message', (message: IMessage) => {
+            getConversations(1, limit).then((result) => {
+                if (result.data)
+                    setConversations(result.data.items);
             })
-            console.log(message);
-            setConversations(
-                updatedConversations,
-            )
+
+            if (message.by !== 'consumer') {
+                audio.play();
+            }
         });
 
         return () => {
-            socket.off('message');
+            socketRef.current.off('message');
         };
-    }, [socket, refresh]);
+    }, [socketRef.current, limit]);
 
     const handleCloseConversationForm = () => {
         setIsConversationModalOpen(false);
@@ -87,10 +94,6 @@ const Home = () => {
     const handleOpenConversationForm = () => {
         setIsConversationModalOpen(true);
     }
-    const handleRefresh = () => {
-        setRefresh((prevRefresh) => !prevRefresh); // Toggle refresh state
-      };
-    
 
     return (
         <div>
@@ -100,10 +103,11 @@ const Home = () => {
                 setSelectedConversation={setSelectedConversation}
             />
             <Navbar
-                socket={socket}
+                socket={socketRef.current}
                 conversations={conversations}
                 onSelectConversation={setSelectedConversation}
                 onCreateNewConversation={handleOpenConversationForm}
+                selectedConversation={selectedConversation}
             />
             <Box display='flex' flexDirection='column' py={2} sx={{
                 maxWidth: 'calc(100% - 240px)',
@@ -112,11 +116,10 @@ const Home = () => {
                 marginRight: '0',
                 marginLeft: 'auto'
             }}>
-                {selectedConversation != "" ? (
-                    <Chat 
-                        socket={socket}
-                        conversationId={selectedConversation}
-                        refresh={handleRefresh}
+                {selectedConversation ? (
+                    <Chat
+                        key={selectedConversation.id}
+                        conversationId={selectedConversation.id}
                     />
                 ) : (
                     <Box sx={{
@@ -125,7 +128,8 @@ const Home = () => {
                         justifyContent: 'center',
                         height: '80%'
                     }}>
-                        <Typography variant={'h4'}> Selecione ou crie uma nova conversa</Typography>
+                        <LikertScale conversation={selectedConversation}></LikertScale>
+                        {/* <Typography variant={'h4'}> Selecione ou crie uma nova conversa</Typography> */}
                     </Box>
                 )}
             </Box>

@@ -36,8 +36,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
             console.log(response);
             const { token, data } = response.data;
 
-            setCookie('techlab-chat-token', token, { maxAge: 60 * 60 * 24 * 10, path: '/' });
-            setCookie('techlab-chat-user', data, { maxAge: 60 * 60 * 24 * 10, path: '/' });
+            setCookie('techlab-chat-token', token, { maxAge: 60 * 60 * 12, path: '/' });
+            setCookie('techlab-chat-user', data, { maxAge: 60 * 60 * 12, path: '/' });
             api.defaults.headers['Authorization'] = `Bearer ${token}`;
 
             return { statusCode: 200, body: "success" };
@@ -57,8 +57,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
                 console.log(response.data);
                 const { token, data } = response.data;
 
-                setCookie('techlab-chat-token', token, { maxAge: 60 * 60 * 24 * 10, path: '/' });
-                setCookie('techlab-chat-user', data, { maxAge: 60 * 60 * 24 * 10, path: '/' });
+                setCookie('techlab-chat-token', token, { maxAge: 60 * 60 * 12, path: '/' });
+                setCookie('techlab-chat-user', data, { maxAge: 60 * 60 * 12, path: '/' });
                 api.defaults.headers['Authorization'] = `Bearer ${token}`;
 
                 return { statusCode: 201, body: "success" };

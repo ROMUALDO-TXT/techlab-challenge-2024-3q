@@ -1,13 +1,16 @@
-import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, Ref, useCallback, useEffect, useRef, useState } from "react";
 import { LoadingButton } from "@mui/lab";
 import { Box, Typography, List, ListItem, Grid, TextField, Button, Link } from "@mui/material";
 import { getMessages } from "../services/api";
 import { useForm } from "react-hook-form";
 import SendIcon from '@mui/icons-material/Send';
 import { IMessage, INewMessage } from "../interfaces/IMessage";
-import { Socket } from "socket.io-client";
 import { useCookies } from "react-cookie";
 import { IMessagesPaginationData } from "../interfaces/IPagination";
+import FileDisplay from "./FileDisplay";
+import AudioDisplay from "./AudioDisplay";
+import { ImageDisplay } from "./ImageDisplay";
+import { io, Socket } from "socket.io-client";
 
 export interface IConversationMessageInput {
   content: string
@@ -15,15 +18,23 @@ export interface IConversationMessageInput {
 
 interface ConversationProps {
   conversationId: string
-  socket: Socket
-  refresh: () => void,
 }
 
-export function Chat({ conversationId, socket, refresh }: ConversationProps) {
+export function Chat({ conversationId }: ConversationProps) {
   const listRef = useRef<HTMLUListElement>(null);
-  const [cookies] = useCookies(['techlab-chat-user']);
+  const [cookies] = useCookies(['techlab-chat-token', 'techlab-chat-user']);
+  const socketRef = useRef<Socket>(
+    io('http://localhost:3000', {
+      auth: {
+        token: "Bearer " + cookies['techlab-chat-token'],
+      },
+      transports: ['websocket'],
+      autoConnect: true,
+    })
+  );
 
-  const limit = 2;
+
+  const limit = 50;
   const [messagesData, setMessagesData] = useState<IMessagesPaginationData>({
     items: [],
     totalItems: 0,
@@ -56,6 +67,25 @@ export function Chat({ conversationId, socket, refresh }: ConversationProps) {
   };
 
   useEffect(() => {
+    socketRef.current.connect();
+    socketRef.current.on('connect', () => {
+      console.log('Connected to WebSocket server');
+    });
+
+    socketRef.current.on('disconnect', () => {
+      console.log('Disconnected from WebSocket server');
+    });
+
+    socketRef.current.on('connect_error', (error: any) => {
+      console.error('Socket connection error:', error);
+    });
+
+    return () => {
+      socketRef.current.disconnect();
+    };
+  }, [socketRef.current]);
+
+  useEffect(() => {
     fetchMessages(conversationId, 1, limit);
   }, [conversationId, limit]);
 
@@ -66,9 +96,9 @@ export function Chat({ conversationId, socket, refresh }: ConversationProps) {
       });
     }
   }, [messages])
+
   const handleLoadMore = () => {
     if ((messagesData.page + 1 * limit) <= messagesData.totalItems) {
-
       getMessages(conversationId, messagesData.page + 1, limit).then((result) => {
         setMessages(result.data.messages.items.concat(messages))
         setMessagesData({
@@ -84,51 +114,42 @@ export function Chat({ conversationId, socket, refresh }: ConversationProps) {
   }
 
   useEffect(() => {
-    if (socket) {
+    socketRef.current.on('message', (message: IMessage) => {
+      setMessages((prevMessages) => [...prevMessages, message]);
+    });
 
-
-      socket.on('message', (message) => {
-        setMessages((prevMessages) => [...prevMessages, message]);
-      });
-
-      return () => {
-        socket.off('message');
-      };
-    }
-  }, [socket]);
+    return () => {
+      socketRef.current.off('message');
+    };
+  }, [socketRef.current]);
 
 
   useEffect(() => {
-    if (socket) {
-      socket.on('isTyping', (data) => {
+    if (socketRef.current) {
+      socketRef.current.on('isTyping', (data) => {
         if (data.conversationId === conversationId && data.user !== cookies['techlab-chat-user'].id) {
           setIsTyping(true);
         }
       });
 
       return () => {
-        socket.off('isTyping');
+        socketRef.current.off('isTyping');
       };
     }
-  }, [socket]);
+  }, [socketRef.current]);
 
   const sendMessage = (content: INewMessage) => {
-    if (!socket) throw new Error('socket error')
-    if (!socket.connected) socket.connect();
-
-    socket.emit('sendMessage', {
+    socketRef.current.emit('sendMessage', {
       ...content,
     });
   };
 
   const handleMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (!socket) throw new Error('socket error')
-    if (!socket.connected) socket.connect();
-    socket.emit('typing', {
+    if (!socketRef.current) throw new Error('socketRef.current error')
+    socketRef.current.emit('typing', {
       conversationId,
       user: cookies['techlab-chat-user'].id,
     });
-    refresh();
   };
 
   const form = useForm({
@@ -146,6 +167,7 @@ export function Chat({ conversationId, socket, refresh }: ConversationProps) {
       by: 'consumer',
       content: message.content,
     })
+
   }, [form])
 
   const submit = form.handleSubmit(handleSubmit)
@@ -168,12 +190,36 @@ export function Chat({ conversationId, socket, refresh }: ConversationProps) {
 
 
         <List ref={listRef} sx={{
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
           overflowY: 'auto',
           maxHeight: 'calc(100vh - 200px)',
-          padding: '10px'
+          padding: '10px',
+          '&::-webkit-scrollbar': {
+            width: '4px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: '#f1f1f1',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#888',
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            background: '#555',
+          },
+          '&::-moz-scrollbar': {
+            width: '4px',
+          },
+          '&::-moz-scrollbar-track': {
+            background: '#f1f1f1',
+          },
+          '&::-moz-scrollbar-thumb': {
+            background: '#888',
+          },
+          '&::-moz-scrollbar-thumb:hover': {
+            background: '#555',
+          },
         }}>
 
           {(messagesData.page * limit) < messagesData.totalItems && (
@@ -210,7 +256,29 @@ export function Chat({ conversationId, socket, refresh }: ConversationProps) {
                   textAlign: 'left',
                 }}
               >
-                <Typography variant='body1'>{message.content}</Typography>
+                {(() => {
+                  switch (message.type) {
+                    default:
+                      return (<Typography variant='body1'>{message.content}</Typography>)
+                      break;
+                    case 'file':
+                      if (message.file)
+                        return (<FileDisplay id={message.file.id}></FileDisplay>)
+                      break;
+                    case 'audio':
+                      if (message.file)
+                        return (<AudioDisplay id={message.file.id}></AudioDisplay>)
+                      break;
+                    case 'image':
+                      if (message.file)
+                        return (<ImageDisplay id={message.file.id}></ImageDisplay>)
+                      break;
+                    case 'rate':
+                      // return (<Likert></Likert>)
+
+                      break;
+                  }
+                })()}
               </div>
               <Typography
                 variant='overline'

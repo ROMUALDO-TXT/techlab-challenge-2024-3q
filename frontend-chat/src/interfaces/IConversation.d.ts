@@ -1,4 +1,5 @@
 import { IConsumer } from "./IConsumer.js"
+import { IMessage } from "./IMessage.js";
 
 export interface IConversation {
   id: string
@@ -13,7 +14,7 @@ export interface IConversationList {
   status: string;
   closingReason?: string;
   rate?: number;
-  lastMessage?: IMessage;
+  lastMessage: IMessage;
   startedAt?: Date;
   finishedAt?: Date;
   createdAt?: Date;
