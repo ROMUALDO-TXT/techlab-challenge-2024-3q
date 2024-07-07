@@ -1,89 +1,85 @@
 import Navbar from '../components/Navbar.tsx';
 import { Box } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
-import { getOpenConversations, getUsers } from '../services/api.ts';
+import { getOpenConversations, getQueueCount, getUsers } from '../services/api.ts';
 import UsersTable from '../components/UsersTable.tsx';
 import { IUser } from '../interfaces/IUser';
 import NewUserForm from '../components/NewUserForm.tsx';
 import { IMessage } from '../interfaces/IMessage';
 import chime from '../assets/chime.mp3'
-import { useCookies } from 'react-cookie';
-import { Socket, io } from 'socket.io-client';
 import { IConversationList } from '../interfaces/IConversation';
+import { useSocket } from '../contexts/SocketContext.tsx';
+import { useCookies } from 'react-cookie';
 
 const Users = () => {
     const [limit, setLimit] = useState(10);
     const [page, setPage] = useState(0);
     const [users, setUsers] = useState<IUser[]>([])
     const [isModalOpen, setIsModalOpen] = useState(false);
-
-    let [cookies] = useCookies(['techlab-chat-token'])
-    const socketRef = useRef<Socket>(
-        io(import.meta.env.VITE_API_URL, {
-            auth: {
-                token: "Bearer " + cookies['techlab-chat-token'],
-            },
-            transports: ['websocket'],
-            timeout: 20000,
-        })
-    );
-    const audio = new Audio(chime);
-
+    
+    const [cookies] = useCookies(['techlab-backoffice-user']);
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const { socket } = useSocket();
     const [conversations, setConversations] = useState<IConversationList[]>([]);
     const [selectedConversation, setSelectedConversation] = useState<IConversationList>();
-
+    const [queueCount, setQueueCount] = useState(0);
     useEffect(() => {
         getOpenConversations(0, 50).then((result) => {
             if (result.data) {
                 setConversations(result.data.items);
             }
         })
+        getQueueCount().then((result) => {
+            if (result.data) {
+                setQueueCount(result.data);
+            }
+        })
     }, [50]);
 
-    const setupSocket = () => {
-        socketRef.current.connect();
-
-        socketRef.current.on('connect', () => {
-            console.log('Connected to WebSocket');
-        });
-
-        socketRef.current.on('disconnect', () => {
-            console.log('Disconnected from WebSocket');
-        });
-
-        socketRef.current.on('connect_error', (error: Error) => {
-            console.error('WebSocket connection error:', error.message);
-        });
-
-        socketRef.current.on('error', (error: Error) => {
-            console.error('WebSocket error:', error.message);
-        });
-    };
-
     useEffect(() => {
-        setupSocket();
+        if (socket) {
+            socket.on('lastMessage', (message: IMessage) => {
+                getOpenConversations(0, limit).then((result) => {
+                    if (result.data)
+                        setConversations(result.data.items);
+                })
 
-        return () => {
-            socketRef.current.disconnect();
-        };
-    }, []);
+                if (message.by !== 'user' && conversations.find((m) => m.id === message.conversationId)) {
+                    if (audioRef.current) {
+                        audioRef.current.play().catch(error => {
+                            console.error('Audio playback error:', error.message);
+                        });
+                    }
+                }
+            });
 
-    useEffect(() => {
-        socketRef.current.on('message', (message: IMessage) => {
-            getOpenConversations(0, limit).then((result) => {
-                if (result.data)
-                    setConversations(result.data.items);
-            })
+            socket.on('userAssigned', ({ userId }: { userId: string, conversationId: string }) => {
+                if (userId === cookies['techlab-backoffice-user'].id) {
+                    getOpenConversations(0, limit).then((result) => {
+                        if (result.data)
+                            setConversations(result.data.items);
+                    })
 
-            if (message.by !== 'user') {
-                audio.play();
-            }
-        });
+                    if (audioRef.current) {
+                        audioRef.current.play().catch(error => {
+                            console.error('Audio playback error:', error.message);
+                        });
+                    }
+                }
+            });
 
-        return () => {
-            socketRef.current.off('message');
-        };
-    }, [socketRef.current, limit]);
+            socket.on('queueCount', ({ queueSize }: { queueSize: number }) => {
+                setQueueCount(queueSize);
+            });
+
+            return () => {
+                socket.off('lastMessage');
+                socket.off('userAssigned')
+                socket.off('queueCount');
+            };
+        }
+    }, [socket, audioRef]);
+
 
     useEffect(() => {
         getUsers(page, limit).then((result) => {
@@ -105,12 +101,14 @@ const Users = () => {
 
     return (
         <div>
+            <audio ref={audioRef} style={{ display: 'none' }} src={chime} />
             <NewUserForm
                 // values={}
                 open={isModalOpen}
                 onClose={handleCloseModal}
             />
             <Navbar
+                queueCount={queueCount}
                 conversations={conversations}
                 onSelectConversation={setSelectedConversation}
                 selectedConversation={selectedConversation}

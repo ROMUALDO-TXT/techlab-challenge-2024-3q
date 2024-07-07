@@ -38,7 +38,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             setCookie('techlab-backoffice-user', data, { maxAge: 60 * 60 * 12, path: '/' });
             api.defaults.headers['Authorization'] = `Bearer ${token}`;
 
-            return { statusCode: 200, body: "success" };
+            return { status: 200, id: data.id, };
         } catch (err: any) {
             if (err instanceof AxiosError) {
                 return err.response?.data;

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Box, Typography, List, ListItem, Button, Link } from "@mui/material";
+import { Box, Typography, List, ListItem, Button, Link, useTheme } from "@mui/material";
 import { getMessages } from "../services/api";
-import { useCookies } from "react-cookie";
 import { IMessage } from "../interfaces/IMessage";
 import { IMessagesPaginationData } from "../interfaces/IPagination";
 import { IConversationList } from "../interfaces/IConversation";
@@ -16,8 +15,6 @@ interface ConversationProps {
 
 export function ClosedChat({ conversation }: ConversationProps) {
   const listRef = useRef<HTMLUListElement>(null);
-  const [cookies] = useCookies(['techlab-backoffice-token', 'techlab-backoffice-user']);
-
   const limit = 200;
   const [messagesData, setMessagesData] = useState<IMessagesPaginationData>({
     items: [],
@@ -51,8 +48,6 @@ export function ClosedChat({ conversation }: ConversationProps) {
 
 
   useEffect(() => {
-    console.log(conversation);
-
     fetchMessages(conversation.id, 0, limit);
   }, [conversation, limit]);
 
@@ -72,36 +67,37 @@ export function ClosedChat({ conversation }: ConversationProps) {
     }
   }
 
-  function calculateTimeDifference(createdAt: Date, startedAt: Date) {
-    if (!(createdAt instanceof Date) || !(startedAt instanceof Date)) {
+  function calculateTimeDifference(start: Date, finish: Date) {
+    if (!(start instanceof Date) || !(finish instanceof Date)) {
       return 'Datas inválidas';
     }
 
-    const diffMilliseconds = createdAt.getTime() - startedAt.getTime();
+    const diffMilliseconds = finish.getTime() - start.getTime();
 
-    // Converter para o formato desejado (por exemplo, segundos, minutos, horas)
-    const seconds = Math.floor(diffMilliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
+    const seconds = Math.floor(diffMilliseconds / 1000) % 60;
+    const minutes = Math.floor(diffMilliseconds / (1000 * 60)) % 60;
+    const hours = Math.floor(diffMilliseconds / (1000 * 60 * 60));
 
-    // Exemplo de formatação para horas, minutos e segundos
-    const formattedTime = `${hours}h ${minutes % 60}m ${seconds % 60}s`;
-
+    const formattedTime = `${hours}h ${minutes}m ${seconds}s`;
     return formattedTime;
   }
 
+  const theme = useTheme();
+
+  const borderColor = theme.palette.mode === 'light' ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.12)";
+
   return (
-    <Box display="flex" flexDirection="column" height="100%">
+    <Box display="flex" flexDirection="column" height="100%" width='100%'>
       <Box sx={{
         display: 'flex',
         height: '80px',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.12);'
+        borderBottom: '1px solid ' + borderColor,
       }}>
         <Box sx={{
           paddingTop: 2,
           paddingBottom: 1,
           width: '25%',
-          borderRight: '1px solid rgba(0, 0, 0, 0.12)'
+          borderRight: '1px solid ' + borderColor,
         }}>
           <Typography align="center">
             <strong>Cliente</strong>
@@ -114,7 +110,7 @@ export function ClosedChat({ conversation }: ConversationProps) {
           paddingTop: 2,
           paddingBottom: 1,
           width: '25%',
-          borderRight: '1px solid rgba(0, 0, 0, 0.12)'
+          borderRight: '1px solid ' + borderColor,
         }}>
           <Typography align="center">
             <strong>Tempo de espera:</strong>
@@ -127,7 +123,7 @@ export function ClosedChat({ conversation }: ConversationProps) {
           paddingTop: 2,
           paddingBottom: 1,
           width: '30%',
-          borderRight: '1px solid rgba(0, 0, 0, 0.12)'
+          borderRight: '1px solid ' + borderColor,
         }}>
           <Typography align="center">
             <strong>Duração do atendimento:</strong>

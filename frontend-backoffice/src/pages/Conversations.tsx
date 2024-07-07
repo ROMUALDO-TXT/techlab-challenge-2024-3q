@@ -1,81 +1,78 @@
 import Navbar from '../components/Navbar.tsx';
 import { Box, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
-import { getClosedConversations, getOpenConversations } from '../services/api.ts';
+import { getClosedConversations, getOpenConversations, getQueueCount } from '../services/api.ts';
 import { ClosedChat } from '../components/ClosedChat.tsx';
 import { IConversationList } from '../interfaces/IConversation';
 import { ClosedConversations } from '../components/ClosedConversations.tsx';
-import { useCookies } from 'react-cookie';
-import { Socket, io } from 'socket.io-client';
 import { IMessage } from '../interfaces/IMessage';
 import chime from '../assets/chime.mp3'
+import { useSocket } from '../contexts/SocketContext.tsx';
+import { useCookies } from 'react-cookie';
 
 const Conversations = () => {
-    let [cookies] = useCookies(['techlab-chat-token'])
-    const socketRef = useRef<Socket>(
-        io(import.meta.env.VITE_API_URL, {
-            auth: {
-                token: "Bearer " + cookies['techlab-chat-token'],
-            },
-            transports: ['websocket'],
-            timeout: 20000,
-        })
-    );
-    const audio = new Audio(chime);
+    const [cookies] = useCookies(['techlab-backoffice-user']);
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const { socket } = useSocket();
     const [conversations, setConversations] = useState<IConversationList[]>([]);
     const [selectedConversation, setSelectedConversation] = useState<IConversationList>();
+    const [queueCount, setQueueCount] = useState(0);
     useEffect(() => {
         getOpenConversations(0, 50).then((result) => {
             if (result.data) {
                 setConversations(result.data.items);
             }
         })
-    }, []);
-
-    const setupSocket = () => {
-        socketRef.current.connect();
-
-        socketRef.current.on('connect', () => {
-            console.log('Connected to WebSocket');
-        });
-
-        socketRef.current.on('disconnect', () => {
-            console.log('Disconnected from WebSocket');
-        });
-
-        socketRef.current.on('connect_error', (error: Error) => {
-            console.error('WebSocket connection error:', error.message);
-        });
-
-        socketRef.current.on('error', (error: Error) => {
-            console.error('WebSocket error:', error.message);
-        });
-    };
-
-    useEffect(() => {
-        setupSocket();
-
-        return () => {
-            socketRef.current.disconnect();
-        };
-    }, []);
-
-    useEffect(() => {
-        socketRef.current.on('message', (message: IMessage) => {
-            getOpenConversations(0, 50).then((result) => {
-                if (result.data)
-                    setConversations(result.data.items);
-            })
-
-            if (message.by !== 'user') {
-                audio.play();
+        getQueueCount().then((result) => {
+            if (result.data) {
+                setQueueCount(result.data);
             }
-        });
+        })
+    }, []);
 
-        return () => {
-            socketRef.current.off('message');
-        };
-    }, [socketRef.current]);
+    useEffect(() => {
+        if (socket) {
+            socket.on('lastMessage', (message: IMessage) => {
+                getOpenConversations(0, limit).then((result) => {
+                    if (result.data)
+                        setConversations(result.data.items);
+                })
+
+                if (message.by !== 'user' && conversations.find((m) => m.id === message.conversationId)) {
+                    if (audioRef.current) {
+                        audioRef.current.play().catch(error => {
+                            console.error('Audio playback error:', error.message);
+                        });
+                    }
+                }
+            });
+            socket.on('userAssigned', ({ userId }: { userId: string, conversationId: string }) => {
+                if (userId === cookies['techlab-backoffice-user'].id) {
+                    getOpenConversations(0, limit).then((result) => {
+                        if (result.data)
+                            setConversations(result.data.items);
+                    })
+
+                    if (audioRef.current) {
+                        audioRef.current.play().catch(error => {
+                            console.error('Audio playback error:', error.message);
+                        });
+                    }
+                }
+            });
+
+            socket.on('queueCount', ({ queueSize }: { queueSize: number }) => {
+                setQueueCount(queueSize);
+            });
+
+            return () => {
+                socket.off('lastMessage');
+                socket.off('userAssigned')
+                socket.off('queueCount');
+            };
+        }
+    }, [socket, audioRef]);
+
 
     const [closedConversations, setClosedConversations] = useState<IConversationList[]>([]);
     const [selectedClosedConversation, setSelectedClosedConversation] = useState<IConversationList>();
@@ -91,7 +88,9 @@ const Conversations = () => {
 
     return (
         <div>
+            <audio ref={audioRef} style={{ display: 'none' }} src={chime} />
             <Navbar
+                queueCount={queueCount}
                 conversations={conversations}
                 onSelectConversation={setSelectedConversation}
                 selectedConversation={selectedConversation}

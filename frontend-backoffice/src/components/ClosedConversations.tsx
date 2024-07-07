@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction } from 'react';
-import { Box, List, ListItemText, Typography, ListItemButton, Divider } from '@mui/material';
+import { Box, List, ListItemText, Typography, ListItemButton, Divider, useTheme } from '@mui/material';
 import { IConversationList } from '../interfaces/IConversation';
 
 interface ISidebarProps {
@@ -10,14 +10,16 @@ interface ISidebarProps {
 
 
 export const ClosedConversations = ({ conversations, selectedConversation, onSelectConversation }: ISidebarProps) => {
-
+    const theme = useTheme();
+    const borderColor = theme.palette.mode === 'light' ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.12)";
+  
     return (
         <Box
             sx={{
                 width: 240,
                 flexShrink: 0,
                 height: '100vh',
-                borderRight: '1px solid rgba(0, 0, 0, 0.12);'
+                borderRight: '1px solid ' + borderColor,
             }}
         >
             <Box sx={{ overflow: 'auto' }}>

@@ -1,8 +1,9 @@
 import React from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination, TextField, Button, Box, Typography, IconButton } from '@mui/material';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination, Box, Typography, IconButton } from '@mui/material';
 import { IConsumer } from '../interfaces/IConsumer';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { deleteConsumer } from '../services/api';
+import { useCookies } from 'react-cookie';
 
 interface IConsumersTableProps {
     consumers: IConsumer[];
@@ -13,7 +14,8 @@ interface IConsumersTableProps {
 }
 
 export const ConsumersTable = ({ consumers, limit, setLimit, page, setPage }: IConsumersTableProps) => {
-    // Pagination
+    const [cookies] = useCookies(['techlab-backoffice-user']);
+    
     const handleChangePage = (event: unknown, newPage: number) => {
         setPage(newPage);
     };
@@ -27,7 +29,7 @@ export const ConsumersTable = ({ consumers, limit, setLimit, page, setPage }: IC
         const confirmed = window.confirm('Tem certeza de que deseja deletar este consumidor?');
         if (confirmed) {
             const result = await deleteConsumer(id);
-            if (result.statusCode === 200) {
+            if (result.status === 200) {
                 window.location.reload();
             }
         }
@@ -56,17 +58,18 @@ export const ConsumersTable = ({ consumers, limit, setLimit, page, setPage }: IC
                             <TableCell>Sobrenome</TableCell>
                             <TableCell>Email</TableCell>
                             <TableCell>Data de Nascimento</TableCell>
-                            <TableCell></TableCell>
-                        </TableRow>
+                            {cookies['techlab-backoffice-user'].profile === 'sudo' ?
+                                <TableCell></TableCell> : null
+                            }                        </TableRow>
                     </TableHead>
                     <TableBody>
                         {consumers ? consumers.map((consumer) => (
-                            console.log(consumer),
                             <TableRow key={consumer.id}>
                                 <TableCell>{consumer.firstName}</TableCell>
                                 <TableCell>{consumer.lastName}</TableCell>
                                 <TableCell>{consumer.email}</TableCell>
                                 <TableCell>{new Date(consumer.birthDate).toLocaleDateString()}</TableCell>
+                                {cookies['techlab-backoffice-user'].profile === 'sudo' ?
                                 <TableCell align="right">
                                     {/* <IconButton color="primary" onClick={() => handleUpdate(consumer)}>
                                         <EditIcon />
@@ -74,7 +77,7 @@ export const ConsumersTable = ({ consumers, limit, setLimit, page, setPage }: IC
                                     <IconButton color="error" onClick={() => handleDelete(consumer.id)}>
                                         <DeleteIcon />
                                     </IconButton>
-                                </TableCell>
+                                </TableCell> : null}
                             </TableRow>
                         )) : null}
                     </TableBody>

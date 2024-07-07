@@ -3,8 +3,6 @@ import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
 
-import { ThemeProvider } from '@emotion/react';
-import { defaultTheme } from './themes/default.js';
 import { CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -14,13 +12,14 @@ import Home from './pages/Home.js';
 import Users from './pages/Users.js';
 import Consumers from './pages/Consumers.js';
 import Conversations from './pages/Conversations.js';
+import { ColorModeProvider } from './contexts/ColorModeContext.js';
 
 const queryClient = new QueryClient()
 
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={defaultTheme}>
+      <ColorModeProvider>
         <CssBaseline />
         <BrowserRouter>
           <Routes>
@@ -47,7 +46,7 @@ export function App() {
             } />
           </Routes>
         </BrowserRouter>
-      </ThemeProvider>
+      </ColorModeProvider>
     </QueryClientProvider>
   )
 }

@@ -11,8 +11,10 @@ import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../contexts/AuthContext';
+import { useSocket } from '../contexts/SocketContext';
 
 function Copyright(props: any) {
+
   return (
     <Typography variant="body2" color="text.secondary" align="center" {...props}>
       {'Copyright © '}
@@ -27,8 +29,22 @@ function Copyright(props: any) {
 
 export default function SignIn() {
   const { signIn } = useAuth()
-  const handleSubmit = ({ username, password }: any) => {
-    signIn(username, password).then(() => window.location.replace('/'))
+  const { socket } = useSocket();
+
+  const handleSubmit = ({ email, password }: any) => {
+    signIn(email, password).then((result) => {
+
+      console.log(result);
+      console.log(socket);
+      if (socket) {
+        socket.emit('login' ,{
+          userId: result.id
+        });
+      }
+
+      window.location.replace('/')
+    })
+
   };
 
   const form = useForm()
@@ -51,13 +67,13 @@ export default function SignIn() {
         </Typography>
         <Box component="form" onSubmit={form.handleSubmit(handleSubmit)} noValidate sx={{ mt: 1 }}>
           <TextField
-            {...form.register('username')}
+            {...form.register('email')}
             margin="normal"
             required
             fullWidth
-            label="Username Or Email"
-            name="username"
-            autoComplete="username"
+            label="Email"
+            name="email"
+            autoComplete="email"
             autoFocus
           />
           <TextField

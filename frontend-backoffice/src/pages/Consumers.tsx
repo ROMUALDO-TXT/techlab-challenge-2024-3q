@@ -1,79 +1,70 @@
 import Navbar from '../components/Navbar.tsx';
 import { Box } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
-import { getConsumers, getOpenConversations } from '../services/api.ts';
+import { getConsumers, getOpenConversations, getQueueCount } from '../services/api.ts';
 import ConsumersTable from '../components/ConsumersTable.tsx';
 import { IConsumer } from '../interfaces/IConsumer';
 import chime from '../assets/chime.mp3'
-import { io, Socket } from 'socket.io-client';
-import { useCookies } from 'react-cookie';
 import { IConversationList } from '../interfaces/IConversation';
 import { IMessage } from '../interfaces/IMessage';
+import { useSocket } from '../contexts/SocketContext.tsx';
+import { useCookies } from 'react-cookie';
 
 const Consumers = () => {
-    let [cookies] = useCookies(['techlab-backoffice-token'])
     const [limit, setLimit] = useState(10);
     const [page, setPage] = useState(0);
     const [consumers, setConsumers] = useState<IConsumer[]>([])
-
+    
+    const [cookies] = useCookies(['techlab-backoffice-user']);
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const { socket } = useSocket();
     const [conversations, setConversations] = useState<IConversationList[]>([]);
     const [selectedConversation, setSelectedConversation] = useState<IConversationList>();
-    const audio = new Audio(chime);
-
-    const socketRef = useRef<Socket>(
-        io(import.meta.env.VITE_API_URL, {
-            auth: {
-                token: "Bearer " + cookies['techlab-backoffice-token'],
-            },
-            transports: ['websocket'],
-            timeout: 20000,
-        })
-    );
-
-    const setupSocket = () => {
-        socketRef.current.connect();
-
-        socketRef.current.on('connect', () => {
-            console.log('Connected to WebSocket');
-        });
-
-        socketRef.current.on('disconnect', () => {
-            console.log('Disconnected from WebSocket');
-        });
-
-        socketRef.current.on('connect_error', (error: Error) => {
-            console.error('WebSocket connection error:', error.message);
-        });
-
-        socketRef.current.on('error', (error: Error) => {
-            console.error('WebSocket error:', error.message);
-        });
-    };
+    const [queueCount, setQueueCount] = useState(0);
 
     useEffect(() => {
-        setupSocket();
+        if (socket) {
+            socket.on('lastMessage', (message: IMessage) => {
+                getOpenConversations(0, limit).then((result) => {
+                    if (result.data)
+                        setConversations(result.data.items);
+                })
 
-        return () => {
-            socketRef.current.disconnect();
-        };
-    }, []);
+                if (message.by !== 'user' && conversations.find((m) => m.id === message.conversationId)) {
+                    if (audioRef.current) {
+                        audioRef.current.play().catch(error => {
+                            console.error('Audio playback error:', error.message);
+                        });
+                    }
+                }
+            });
 
-    useEffect(() => {
-        socketRef.current.on('message', (message: IMessage) => {
-            getOpenConversations(0, limit).then((result) => {
-                if (result.data)
-                    setConversations(result.data.items);
-            })
+            socket.on('userAssigned', ({ userId }: { userId: string, conversationId: string }) => {
+                if (userId === cookies['techlab-backoffice-user'].id) {
+                    getOpenConversations(0, limit).then((result) => {
+                        if (result.data)
+                            setConversations(result.data.items);
+                    })
 
-            if (message.by !== 'user') {
-                audio.play();
-            }
-        });
+                    if (audioRef.current) {
+                        audioRef.current.play().catch(error => {
+                            console.error('Audio playback error:', error.message);
+                        });
+                    }
+                }
+            });
 
-        return () => {
-            socketRef.current.off('message');
-        };
-    }, [socketRef.current, limit]);
+            socket.on('queueCount', ({ queueSize }: { queueSize: number }) => {
+                setQueueCount(queueSize);
+            });
+
+            return () => {
+                socket.off('lastMessage');
+                socket.off('userAssigned')
+                socket.off('queueCount');
+            };
+        }
+    }, [socket, audioRef]);
 
 
     useEffect(() => {
@@ -89,12 +80,20 @@ const Consumers = () => {
                 setPage(result.data.page);
             }
         })
+
+        getQueueCount().then((result) => {
+            if (result.data) {
+                setQueueCount(result.data);
+            }
+        })
     }, [page, limit]);
 
 
     return (
         <div>
+            <audio ref={audioRef} style={{ display: 'none' }} src={chime} />
             <Navbar
+                queueCount={queueCount}
                 conversations={conversations}
                 onSelectConversation={setSelectedConversation}
                 selectedConversation={selectedConversation}

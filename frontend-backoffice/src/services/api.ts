@@ -8,6 +8,31 @@ export const api = axios.create({
 api.defaults.headers.get['Access-Control-Allow-Origin'] = '*';
 
 //CONVERSATIONS AND MESSAGES
+export const finishConversation = async ( conversationId:string, closingReason: string) => {
+  try {
+    const response = await api.patch(`/conversations/finish`, {
+      conversationId: conversationId,
+      closingReason: closingReason
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    if (response.status === 200) {
+      return { status: 200, body: "success" };
+    }
+    return {
+      status: response.status,
+      message: response.data.message,
+    }
+  } catch (err: any) {
+    if (err instanceof AxiosError) {
+      return err.response?.data;
+    }
+    throw err;
+  }
+}
+
 export const getMessages = async (conversationId: string, page: number, limit: number) => {
   try {
     const response = await api.get(`/conversations/messages/${conversationId}`, {
@@ -47,13 +72,11 @@ export const getOpenConversations = async (page: number, limit: number) => {
       }
     });
 
-    console.log(response);
     return response.data;
   } catch (err) {
     return err;
   }
 }
-
 
 export const getClosedConversations = async (page: number, limit: number) => {
   try {
@@ -64,6 +87,15 @@ export const getClosedConversations = async (page: number, limit: number) => {
       }
     }
     );
+    return response.data;
+  } catch (err) {
+    return err;
+  }
+}
+
+export const getQueueCount = async() =>{
+  try {
+    const response = await api.get(`/conversations/queue`)
     return response.data;
   } catch (err) {
     return err;
@@ -104,11 +136,46 @@ export const createUser = async (data: ICreateUser) => {
       }
     });
     if (response.status === 201) {
-      return { statusCode: 201, body: "success" };
+      return { status: 201, body: "success" };
     }
 
     return {
-      statusCode: response.status,
+      status: response.status,
+      message: response.data.message,
+    }
+  } catch (err: any) {
+    if (err instanceof AxiosError) {
+      return err.response?.data;
+    }
+    throw err;
+  }
+}
+
+export const getAvailabilityStatus = async() =>{
+  try {
+    const response = await api.get(`/users/availability`)
+    return response.data;
+  } catch (err) {
+    return err;
+  }
+}
+
+export const updateAvailability = async (data: {available: boolean}) => {
+  try {
+    console.log(data)
+
+    const response = await api.patch(`/users/availability`, {
+      available: data.available,
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    if (response.status === 200) {
+      return { status: 200, data };
+    }
+    return {
+      status: response.status,
       message: response.data.message,
     }
   } catch (err: any) {
@@ -124,11 +191,11 @@ export const deleteUser = async (id: string) => {
     const response = await api.delete(`/users/${id}`);
 
     if (response.status === 200) {
-      return { statusCode: 200, body: "success" };
+      return { status: 200, body: "success" };
     }
 
     return {
-      statusCode: response.status,
+      status: response.status,
       message: response.data.message,
     }
   } catch (err: any) {
@@ -177,11 +244,11 @@ export const deleteConsumer = async (id: string) => {
   try {
     const response = await api.delete(`/consumers/${id}`);
     if (response.status === 200) {
-      return { statusCode: 200, body: "success" };
+      return { status: 200, body: "success" };
     }
 
     return {
-      statusCode: response.status,
+      status: response.status,
       message: response.data.message,
     }
   } catch (err: any) {

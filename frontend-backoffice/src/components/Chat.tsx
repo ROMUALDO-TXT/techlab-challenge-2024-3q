@@ -1,17 +1,17 @@
-import { ChangeEvent, Ref, useCallback, useEffect, useRef, useState } from "react";
-import { LoadingButton } from "@mui/lab";
-import { Box, Typography, List, ListItem, Grid, TextField, Button, Link, Divider } from "@mui/material";
-import { getMessages } from "../services/api";
-import { useForm } from "react-hook-form";
-import SendIcon from '@mui/icons-material/Send';
-import { IMessage, INewMessage } from "../interfaces/IMessage";
+import { useEffect, useRef, useState } from "react";
+import { Box, Typography, List, ListItem, Button, Link, Divider, useTheme } from "@mui/material";
+import { displayFile, getMessages } from "../services/api";
+import { IMessage } from "../interfaces/IMessage";
 import { useCookies } from "react-cookie";
 import { IMessagesPaginationData } from "../interfaces/IPagination";
 // import FileDisplay from "./FileDisplay";
 // import AudioDisplay from "./AudioDisplay";
 // import { ImageDisplay } from "./ImageDisplay";
-import { io, Socket } from "socket.io-client";
 import { IConversationList } from "../interfaces/IConversation";
+import { useSocket } from "../contexts/SocketContext";
+import { ChatInput } from "./ChatInput";
+import FinishConversationForm from "./FinishConversationForm";
+import { CheckCircle } from "@mui/icons-material";
 
 export interface IConversationMessageInput {
   content: string
@@ -22,17 +22,8 @@ interface ConversationProps {
 export function Chat({ conversation }: ConversationProps) {
   const listRef = useRef<HTMLUListElement>(null);
   const [cookies] = useCookies(['techlab-backoffice-token', 'techlab-backoffice-user']);
-  const socketRef = useRef<Socket>(
-    io(import.meta.env.VITE_API_URL, {
-      auth: {
-        token: "Bearer " + cookies['techlab-backoffice-token'],
-      },
-      transports: ['websocket'],
-      timeout: 20000,
-    })
-  );
 
-
+  const { socket } = useSocket();
   const limit = 50;
   const [messagesData, setMessagesData] = useState<IMessagesPaginationData>({
     items: [],
@@ -43,6 +34,25 @@ export function Chat({ conversation }: ConversationProps) {
 
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('message', (message: IMessage) => {
+        setMessages((prevMessages) => [...prevMessages, message]);
+      });
+
+      socket.on('isTyping', (data) => {
+        if (data.conversationId === conversation.id && data.user !== cookies['techlab-backoffice-user'].id) {
+          setIsTyping(true);
+        }
+      });
+
+      return () => {
+        socket.off('message');
+        socket.off('isTyping');
+      };
+    }
+  }, [socket]);
 
   const fetchMessages = async (conversationId: string, page: number, limit: number) => {
     if (listRef.current) {
@@ -64,34 +74,6 @@ export function Chat({ conversation }: ConversationProps) {
       console.log(error);
     })
   };
-
-  const setupSocket = () => {
-    socketRef.current.connect();
-
-    socketRef.current.on('connect', () => {
-      console.log('Connected to WebSocket');
-    });
-
-    socketRef.current.on('disconnect', () => {
-      console.log('Disconnected from WebSocket');
-    });
-
-    socketRef.current.on('connect_error', (error: Error) => {
-      console.error('WebSocket connection error:', error.message);
-    });
-
-    socketRef.current.on('error', (error: Error) => {
-      console.error('WebSocket error:', error.message);
-    });
-  };
-
-  useEffect(() => {
-    setupSocket();
-
-    return () => {
-      socketRef.current.disconnect();
-    };
-  }, []);
 
   useEffect(() => {
     fetchMessages(conversation.id, 0, limit);
@@ -121,88 +103,37 @@ export function Chat({ conversation }: ConversationProps) {
     }
   }
 
-  useEffect(() => {
-    socketRef.current.on('message', (message: IMessage) => {
-      setMessages((prevMessages) => [...prevMessages, message]);
-    });
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-    return () => {
-      socketRef.current.off('message');
-    };
-  }, [socketRef.current]);
-
-
-  // useEffect(() => {
-  //   if (socketRef.current) {
-  //     socketRef.current.on('isTyping', (data) => {
-  //       if (data.conversationId === conversation.id && data.user !== cookies['techlab-backoffice-user'].id) {
-  //         setIsTyping(true);
-  //       }
-  //     });
-
-  //     return () => {
-  //       socketRef.current.off('isTyping');
-  //     };
-  //   }
-  // }, [socketRef.current]);
-
-  const sendMessage = (content: INewMessage) => {
-    if (!socketRef.current.connected) socketRef.current.connect();
-    socketRef.current.emit('sendMessage', {
-      ...content,
-    });
+  const handleOpenModal = () => {
+    setIsModalOpen(true);
   };
 
-  const handleMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    // if (!socketRef.current) throw new Error('socketRef.current error')
-    // socketRef.current.emit('typing', {
-    //   conversationId: conversation.id,
-    //   user: cookies['techlab-backoffice-user'].id,
-    // });
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
   };
 
-  const form = useForm({
-    defaultValues: { content: '' },
-  })
+  const theme = useTheme();
 
-  const handleSubmit = useCallback((message: IConversationMessageInput) => {
-    message.content = message.content?.trim()
-
-    if (!message.content) return;
-
-    form.reset();
-    sendMessage({
-      conversationId: conversation.id,
-      by: 'user',
-      content: message.content,
-    })
-
-  }, [form])
-
-  const submit = form.handleSubmit(handleSubmit)
-
-  const handleKeyPress = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Enter') return
-
-    if (event.shiftKey) return
-
-    event.stopPropagation()
-
-    submit(event)
-  }, [submit])
+  const borderColor = theme.palette.mode === 'light' ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.12)";
 
   return (
     <Box display="flex" flexDirection="column" height="100%">
+      <FinishConversationForm
+        conversationId={conversation.id}
+        onClose={handleCloseModal}
+        open={isModalOpen}
+      />
       <Box sx={{
         display: 'flex',
         height: '80px',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.12);'
+        borderBottom: '1px solid ' + borderColor
       }}>
         <Box sx={{
           paddingTop: 2,
           paddingBottom: 1,
           width: '25%',
-          borderRight: '1px solid rgba(0, 0, 0, 0.12)'
+          borderRight: '1px solid ' + borderColor
         }}>
           <Typography align="center">
             <strong>Cliente</strong>
@@ -215,7 +146,7 @@ export function Chat({ conversation }: ConversationProps) {
           paddingTop: 2,
           paddingBottom: 1,
           width: '50%',
-          borderRight: '1px solid rgba(0, 0, 0, 0.12)'
+          borderRight: '1px solid ' + borderColor
         }}>
           <Typography align="center">
             <strong>Assunto do atendimento</strong>
@@ -225,18 +156,30 @@ export function Chat({ conversation }: ConversationProps) {
           </Typography>
         </Box>
         <Box sx={{
-          paddingTop: 2,
-          paddingBottom: 1,
+          display: 'flex',
           width: '25%',
-          borderRight: '1px solid rgba(0, 0, 0, 0.12)'
+          borderRight: '1px solid ' + borderColor
         }}>
-          <Button>Finalizar atendimento</Button>
-          {/* <Typography align="center">
-            <strong>Assunto do atendimento</strong>
-          </Typography>
-          <Typography align="center">
-            {conversation.subject} 
-          </Typography> */}
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<CheckCircle />}
+            onClick={handleOpenModal}
+            sx={{
+              borderRadius: 2,
+              padding: '10px 20px',
+              fontSize: '16px',
+              textTransform: 'none',
+              margin: 'auto',
+              boxShadow: 3,
+              '&:hover': {
+                backgroundColor: 'primary.dark',
+                boxShadow: 6,
+              },
+            }}
+          >
+            Finalizar Atendimento
+          </Button>
         </Box>
       </Box>
       <Box height='75%'>
@@ -273,7 +216,7 @@ export function Chat({ conversation }: ConversationProps) {
           },
         }}>
 
-          {(messagesData.page * limit) < messagesData.totalItems && (
+          {(messagesData.page + 1 * limit) < messagesData.totalItems && (
             <Button
               component={Link}
               underline="always"
@@ -293,11 +236,6 @@ export function Chat({ conversation }: ConversationProps) {
                 marginBottom: '10px',
               }}
             >
-              {message.by === 'system' && (
-                <Typography variant='body2' fontStyle='italic' color="GrayText" gutterBottom>
-                  Mensagem Automática
-                </Typography>
-              )}
               <div
                 style={{
                   backgroundColor: message.by !== 'consumer' ? 'rgba(220, 248, 198, 0.363)' : 'rgba(224, 224, 224, 0.319)',
@@ -331,37 +269,50 @@ export function Chat({ conversation }: ConversationProps) {
                   }
                 })()}
               </div>
-              <Typography
-                variant='overline'
-                sx={{
-                  alignSelf: message.by !== 'consumer' ? 'flex-end' : 'flex-start',
-                  marginTop: '5px',
-                  color: 'text.secondary',
-                }}
-              >
-                {new Date(message.createdAt).toLocaleString()}
-              </Typography>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+                {(() => {
+                  switch (message.by) {
+                    case 'system':
+                      return (
+                        <Typography variant='body2' mr={2} fontStyle='italic' color="GrayText">
+                          Mensagem Automática
+                        </Typography>
+                      )
+                    case 'consumer':
+                      return (
+                        <Typography variant='body2' mr={2} color="GrayText">
+                          {conversation.consumer.firstName}
+                        </Typography>
+                      )
+                    case 'user':
+                      return (
+                        <Typography variant='body2' mr={2} color="GrayText">
+                          Agente
+                        </Typography>
+                      )
+                  }
+                })()}
+                <Typography
+                  variant='overline'
+                  sx={{
+                    alignSelf: message.by !== 'consumer' ? 'flex-end' : 'flex-start',
+                    color: 'text.secondary',
+                  }}
+                >
+                  {new Date(message.createdAt).toLocaleString()}
+                </Typography>
+              </Box>
             </ListItem>
           ))}
 
         </List>
       </Box>
       <Divider />
-      <Box sx={{
-        marginTop: 'auto',
-        width: '100%',
-        paddingX: 2,
-        paddingTop: 2.5,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-evenly',
-        gap: 4
-      }}>
-        <TextField {...form.register('content')} placeholder="Digite uma mensagem" multiline fullWidth onSubmit={submit} onKeyUp={handleKeyPress} onChange={handleMessageChange} />
-        <LoadingButton loading={false} variant="contained" style={{ padding: 16 }} startIcon={<SendIcon />} onClick={submit}>
-          Enviar
-        </LoadingButton>
-      </Box>
+      <ChatInput conversationId={conversation.id} />
     </Box>
   )
 }

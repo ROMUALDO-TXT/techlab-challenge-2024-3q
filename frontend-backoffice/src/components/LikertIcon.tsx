@@ -37,10 +37,12 @@ export function LikertIcon({ value }: LikertIconProps) {
     if (!value) {
         return (
             <Box sx={{
-                display: 'inline-block',
-                color: 'grey', // Set color based on value
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                color: 'grey',
             }}>
-                <SentimentNeutralIcon sx={{ fontSize: 40 }} />,
+                <SentimentNeutralIcon sx={{ fontSize: 32 }} />
                 <Typography margin="0">Não avaliado</Typography>
             </Box>
         );
@@ -49,14 +51,14 @@ export function LikertIcon({ value }: LikertIconProps) {
         throw new Error('Value must be between 1 and 5');
     }
 
-    const index = value - 1; // Adjust index for array
+    const index = value - 1; 
 
     return (
         <Box sx={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            color: colors[index], // Set color based on value
+            color: colors[index],
         }}>
             {icons[index]}
             <Typography margin="0">{text[index]}</Typography>

@@ -1,10 +1,10 @@
 import React from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination, TextField, Button, Box, Typography, IconButton } from '@mui/material';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination, Button, Box, Typography, IconButton } from '@mui/material';
 import { IUser } from '../interfaces/IUser';
-import { AddCircle, AddCircleOutline, PlusOneOutlined } from '@mui/icons-material';
-import EditIcon from '@mui/icons-material/Edit';
+import { AddCircle } from '@mui/icons-material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { deleteUser } from '../services/api';
+import { useCookies } from 'react-cookie';
 
 interface IUsersTableProps {
     users: IUser[];
@@ -16,7 +16,8 @@ interface IUsersTableProps {
 }
 
 export const UsersTable = ({ users, onCreateNewUser, limit, setLimit, page, setPage }: IUsersTableProps) => {
-    // Pagination
+    const [cookies] = useCookies(['techlab-backoffice-user']);
+
     const handleChangePage = (event: unknown, newPage: number) => {
         setPage(newPage);
     };
@@ -34,7 +35,7 @@ export const UsersTable = ({ users, onCreateNewUser, limit, setLimit, page, setP
         const confirmed = window.confirm('Tem certeza de que deseja deletar este usuário?');
         if (confirmed) {
             const result = await deleteUser(id);
-            if (result.statusCode === 200) {
+            if (result.status === 200) {
                 window.location.reload();
             }
         }
@@ -53,15 +54,16 @@ export const UsersTable = ({ users, onCreateNewUser, limit, setLimit, page, setP
                 padding: 1,
             }}>
                 <Typography variant='h4'>Usuários</Typography>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={onCreateNewUser}
-                    sx={{ marginBottom: 2 }}
-                >
-                    Novo usuário
-                    <AddCircle sx={{ marginLeft: "8px" }} />
-                </Button>
+                {cookies['techlab-backoffice-user'].profile === 'sudo' ?
+                    (<Button
+                        variant="contained"
+                        color="primary"
+                        onClick={onCreateNewUser}
+                        sx={{ marginBottom: 2 }}
+                    >
+                        Novo usuário
+                        <AddCircle sx={{ marginLeft: "8px" }} />
+                    </Button>) : null}
             </Box>
             <TableContainer sx={{
                 background: 'inherit',
@@ -76,7 +78,9 @@ export const UsersTable = ({ users, onCreateNewUser, limit, setLimit, page, setP
                             <TableCell>Disponível</TableCell>
                             <TableCell>Avaliação</TableCell>
                             <TableCell>Perfil</TableCell>
-                            <TableCell></TableCell>
+                            {cookies['techlab-backoffice-user'].profile === 'sudo' ?
+                                <TableCell></TableCell> : null
+                            }
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -87,14 +91,16 @@ export const UsersTable = ({ users, onCreateNewUser, limit, setLimit, page, setP
                                 <TableCell>{user.available ? 'Sim' : 'Não'}</TableCell>
                                 <TableCell>{user.ratings ? Number(user.ratings).toFixed(1) : "Sem avaliações"}</TableCell>
                                 <TableCell>{user.profile}</TableCell>
-                                <TableCell align="right">
-                                    {/* <IconButton color="primary" onClick={() => handleUpdate(user.id)}>
+                                {cookies['techlab-backoffice-user'].profile === 'sudo' ?
+                                    <TableCell align="right">
+                                        {/* <IconButton color="primary" onClick={() => handleUpdate(user.id)}>
                                         <EditIcon />
                                     </IconButton> */}
-                                    <IconButton color="error" onClick={() => handleDelete(user.id)}>
-                                        <DeleteIcon />
-                                    </IconButton>
-                                </TableCell>
+                                        <IconButton color="error" onClick={() => handleDelete(user.id)}>
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </TableCell>
+                                    : null}
                             </TableRow>
                         )) : null}
                     </TableBody>

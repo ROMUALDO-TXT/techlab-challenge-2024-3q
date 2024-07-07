@@ -44,7 +44,7 @@ export const NewUserForm = ({ open, onClose }: NewUserFormProps) => {
                     password: values.password,
                     profile: values.profile
                 })
-                if (response.statusCode === 201) {
+                if (response.status === 201) {
                     setIsLoading(false);
                     window.location.reload();
                 } else {
