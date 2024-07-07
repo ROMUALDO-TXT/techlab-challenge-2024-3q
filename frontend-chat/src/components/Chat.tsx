@@ -1,4 +1,4 @@
-import { ChangeEvent, Ref, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { LoadingButton } from "@mui/lab";
 import { Box, Typography, List, ListItem, Grid, TextField, Button, Link } from "@mui/material";
 import { getMessages } from "../services/api";
@@ -24,15 +24,14 @@ export function Chat({ conversationId }: ConversationProps) {
   const listRef = useRef<HTMLUListElement>(null);
   const [cookies] = useCookies(['techlab-chat-token', 'techlab-chat-user']);
   const socketRef = useRef<Socket>(
-    io('http://localhost:3000', {
+    io(import.meta.env.VITE_API_URL, {
       auth: {
         token: "Bearer " + cookies['techlab-chat-token'],
       },
       transports: ['websocket'],
-      autoConnect: true,
+      timeout: 20000,
     })
   );
-
 
   const limit = 50;
   const [messagesData, setMessagesData] = useState<IMessagesPaginationData>({
@@ -43,7 +42,7 @@ export function Chat({ conversationId }: ConversationProps) {
   });
 
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
+  // const [isTyping, setIsTyping] = useState(false);
 
   const fetchMessages = async (conversationId: string, page: number, limit: number) => {
     if (listRef.current) {
@@ -66,27 +65,37 @@ export function Chat({ conversationId }: ConversationProps) {
     })
   };
 
-  useEffect(() => {
+  const setupSocket = () => {
     socketRef.current.connect();
+
     socketRef.current.on('connect', () => {
-      console.log('Connected to WebSocket server');
+      console.log('Connected to WebSocket');
     });
 
     socketRef.current.on('disconnect', () => {
-      console.log('Disconnected from WebSocket server');
+      console.log('Disconnected from WebSocket');
     });
 
-    socketRef.current.on('connect_error', (error: any) => {
-      console.error('Socket connection error:', error);
+    socketRef.current.on('connect_error', (error: Error) => {
+      socketRef.current.disconnect();
+      console.error('WebSocket connection error:', error.message);
     });
+
+    socketRef.current.on('error', (error: Error) => {
+      console.error('WebSocket error:', error.message);
+    });
+  };
+
+  useEffect(() => {
+    setupSocket();
 
     return () => {
       socketRef.current.disconnect();
     };
-  }, [socketRef.current]);
+  }, []);
 
   useEffect(() => {
-    fetchMessages(conversationId, 1, limit);
+    fetchMessages(conversationId, 0, limit);
   }, [conversationId, limit]);
 
   useEffect(() => {
@@ -124,19 +133,19 @@ export function Chat({ conversationId }: ConversationProps) {
   }, [socketRef.current]);
 
 
-  useEffect(() => {
-    if (socketRef.current) {
-      socketRef.current.on('isTyping', (data) => {
-        if (data.conversationId === conversationId && data.user !== cookies['techlab-chat-user'].id) {
-          setIsTyping(true);
-        }
-      });
+  // useEffect(() => {
+  //   if (socketRef.current) {
+  //     socketRef.current.on('isTyping', (data) => {
+  //       if (data.conversationId === conversationId && data.user !== cookies['techlab-chat-user'].id) {
+  //         setIsTyping(true);
+  //       }
+  //     });
 
-      return () => {
-        socketRef.current.off('isTyping');
-      };
-    }
-  }, [socketRef.current]);
+  //     return () => {
+  //       socketRef.current.off('isTyping');
+  //     };
+  //   }
+  // }, [socketRef.current]);
 
   const sendMessage = (content: INewMessage) => {
     socketRef.current.emit('sendMessage', {
@@ -144,12 +153,12 @@ export function Chat({ conversationId }: ConversationProps) {
     });
   };
 
-  const handleMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (!socketRef.current) throw new Error('socketRef.current error')
-    socketRef.current.emit('typing', {
-      conversationId,
-      user: cookies['techlab-chat-user'].id,
-    });
+  const handleMessageChange = () => {
+    // if (!socketRef.current) throw new Error('socketRef.current error')
+    // socketRef.current.emit('typing', {
+    //   conversationId,
+    //   user: cookies['techlab-chat-user'].id,
+    // });
   };
 
   const form = useForm({

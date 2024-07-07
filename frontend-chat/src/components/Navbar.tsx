@@ -5,7 +5,6 @@ import Button from '@mui/material/Button';
 import { useCookies } from 'react-cookie';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, Divider, Drawer, List, ListItemButton, ListItemText } from '@mui/material';
-import { Socket } from 'socket.io-client';
 import { IConversationList } from '../interfaces/IConversation';
 import { Dispatch, SetStateAction } from 'react';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
@@ -14,7 +13,6 @@ interface ISidebarProps {
     conversations: IConversationList[];
     onSelectConversation: Dispatch<SetStateAction<IConversationList | undefined>>;
     onCreateNewConversation: () => void;
-    socket: Socket;
     selectedConversation: IConversationList | undefined;
 }
 

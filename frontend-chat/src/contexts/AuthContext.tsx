@@ -33,7 +33,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const signIn = async (email: string, password: string) => {
         try {
             const response = await api.post('/auth/chat', { email, password });
-            console.log(response);
             const { token, data } = response.data;
 
             setCookie('techlab-chat-token', token, { maxAge: 60 * 60 * 12, path: '/' });
@@ -52,7 +51,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const signUp = async (data: ICreateConsumer) => {
         try {
             const response = await api.post('/consumers', data);
-            console.log(response)
             if (response.status === 201) {
                 console.log(response.data);
                 const { token, data } = response.data;

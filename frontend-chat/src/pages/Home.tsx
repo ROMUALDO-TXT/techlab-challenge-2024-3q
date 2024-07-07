@@ -6,70 +6,81 @@ import { useCookies } from 'react-cookie';
 import { useEffect, useRef, useState } from 'react';
 import { getConversations } from '../services/api.ts';
 import { IConversationList } from '../interfaces/IConversation';
-import { IConversationsPaginationData } from '../interfaces/IPagination';
 import { ConversationForm } from '../components/ConversationForm.tsx';
 import { LikertScale } from '../components/Likert.tsx';
 import chime from '../assets/chime.mp3'
 import { IMessage } from '../interfaces/IMessage';
 import { io, Socket } from 'socket.io-client';
+import { useParams } from 'react-router-dom';
 
 const Home = () => {
-    const [refresh, setRefresh] = useState(false);
     let [cookies] = useCookies(['techlab-chat-token'])
-    const audio = new Audio(chime);
     const socketRef = useRef<Socket>(
-        io('http://localhost:3000', {
+        io(import.meta.env.VITE_API_URL, {
             auth: {
                 token: "Bearer " + cookies['techlab-chat-token'],
             },
             transports: ['websocket'],
-            autoConnect: true,
+            timeout: 20000,
         })
     );
 
-    const [conversationData, setConversationData] = useState<IConversationsPaginationData>({
-        items: [],
-        totalItems: 0,
-        page: 0,
-        limit: 0,
-    });
+    let { param } = useParams();
+    const audio = new Audio(chime);
+
     const [conversations, setConversations] = useState<IConversationList[]>([]);
     const [selectedConversation, setSelectedConversation] = useState<IConversationList>();
-    const [isConversationModalOpen, setIsConversationModalOpen] = useState<boolean>(false);
 
     const limit = 50;
 
     useEffect(() => {
-        getConversations(1, limit).then((result) => {
-            if (result.data)
+        getConversations(0, limit).then((result) => {
+            if (result.data) {
                 setConversations(result.data.items);
+                if (param) {
+                    const selectedParam = result.data.items.find((c: IConversationList) => {
+                        console.log(c.id);
+                        return c.id === param
+                    });
+                    if (selectedParam) setSelectedConversation(selectedParam);
+                    param = undefined;
+                }
+            }
         })
-    }, [limit]);
+    }, [limit, param]);
 
-    useEffect(() => {
+    const setupSocket = () => {
         socketRef.current.connect();
 
-        console.log(socketRef.current)
         socketRef.current.on('connect', () => {
-            console.log('Connected to WebSocket server');
+            console.log('Connected to WebSocket');
         });
 
         socketRef.current.on('disconnect', () => {
-            console.log('Disconnected from WebSocket server');
+            console.log('Disconnected from WebSocket');
         });
 
-        socketRef.current.on('connect_error', (error: any) => {
-            console.error('Socket connection error:', error);
+        socketRef.current.on('connect_error', (error: Error) => {
+            socketRef.current.disconnect();
+            console.error('WebSocket connection error:', error.message);
         });
+
+        socketRef.current.on('error', (error: Error) => {
+            console.error('WebSocket error:', error.message);
+        });
+    };
+
+    useEffect(() => {
+        setupSocket();
 
         return () => {
             socketRef.current.disconnect();
         };
-    }, [socketRef.current]);
+    }, []);
 
     useEffect(() => {
         socketRef.current.on('message', (message: IMessage) => {
-            getConversations(1, limit).then((result) => {
+            getConversations(0, limit).then((result) => {
                 if (result.data)
                     setConversations(result.data.items);
             })
@@ -84,9 +95,12 @@ const Home = () => {
         };
     }, [socketRef.current, limit]);
 
+    
+    const [isConversationModalOpen, setIsConversationModalOpen] = useState<boolean>(false);
+
     const handleCloseConversationForm = () => {
         setIsConversationModalOpen(false);
-        getConversations(1, limit).then((result) => {
+        getConversations(0, limit).then((result) => {
 
             setConversations(result.data.items);
         })
@@ -103,7 +117,6 @@ const Home = () => {
                 setSelectedConversation={setSelectedConversation}
             />
             <Navbar
-                socket={socketRef.current}
                 conversations={conversations}
                 onSelectConversation={setSelectedConversation}
                 onCreateNewConversation={handleOpenConversationForm}
