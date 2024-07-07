@@ -10319,14 +10319,18 @@ __metadata:
     "@typescript-eslint/parser": "npm:^7.2.0"
     "@vitejs/plugin-react-swc": "npm:^3.5.0"
     axios: "npm:^1.7.2"
+    formik: "npm:^2.4.6"
     jsonwebtoken: "npm:^9.0.2"
     react: "npm:^18.2.0"
+    react-cookie: "npm:^7.1.4"
     react-dom: "npm:^18.2.0"
     react-hook-form: "npm:^7.52.0"
     react-router-dom: "npm:^6.23.1"
     serve: "npm:^14.2.3"
+    socket.io-client: "npm:^4.7.5"
     typescript: "npm:^5.5.2"
     vite: "npm:^5.2.0"
+    yup: "npm:^1.4.0"
   languageName: unknown
   linkType: soft
 

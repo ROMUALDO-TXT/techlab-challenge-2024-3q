@@ -5,6 +5,7 @@ import { Public } from 'src/auth/decorators/public.decorator';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
 import { CreateConsumerDto } from './dto/create-consumer.dto';
 import { Response } from 'express';
+import { ProfilesAllowed } from 'src/auth/decorators/profiles.decorator';
 
 @ApiTags("Consumidores")
 @Controller('consumers')
@@ -22,7 +23,8 @@ export class ConsumersController {
     return response.status(res.status).send(res);
   }
 
-  @Get('')
+  @Get('self')
+  @ProfilesAllowed('consumer')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'
@@ -41,8 +43,8 @@ export class ConsumersController {
     return response.status(res.status).send(res);
 }
 
-  @Public()
   @Get(':id')
+  @ProfilesAllowed('sudo')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'
@@ -61,8 +63,8 @@ export class ConsumersController {
     return response.status(res.status).send(res);
 }
 
-  @Public()
   @Get('')
+  @ProfilesAllowed('sudo')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'
@@ -102,8 +104,8 @@ export class ConsumersController {
   //    return result;
   //  }
 
-  @Public()
   @Delete(':id')
+  @ProfilesAllowed('sudo')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro deletado'

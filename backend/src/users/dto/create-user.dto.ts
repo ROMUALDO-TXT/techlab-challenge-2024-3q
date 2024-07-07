@@ -6,7 +6,6 @@ import { Profiles } from 'src/domain/constants/profiles';
 export class CreateUserDto {
     @IsNotEmpty()
     @IsString()
-    @Length(3, 20)
     @ApiProperty()
     username: string;
 
@@ -18,7 +17,6 @@ export class CreateUserDto {
 
     @IsNotEmpty()
     @IsString()
-    @Length(8, 100)
     @ApiProperty()
     password: string;
 

@@ -95,7 +95,7 @@ export class ConversationsService extends ServiceBaseClass {
 
   async conversationQueue(page: number = 1, limit: number = 25) {
     try {
-      page = page > 0 ? page : 1;
+      page = page >= 0 ? page : 0;
       limit = limit > 0 ? limit : 25;
       const [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
         where: {
@@ -105,7 +105,7 @@ export class ConversationsService extends ServiceBaseClass {
         relations: {
           consumer: true
         },
-        skip: (page - 1) * limit,
+        skip: (page) * limit,
         take: limit,
         order: {
           createdAt: 'ASC',
@@ -409,13 +409,13 @@ export class ConversationsService extends ServiceBaseClass {
 
   async findAll(page: number = 1, limit: number = 25) {
     try {
-      page = page > 0 ? page : 1;
+      page = page >= 0 ? page : 0;
       limit = limit > 0 ? limit : 25;
       const [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
         relations: {
           consumer: true
         },
-        skip: (page - 1) * limit,
+        skip: (page) * limit,
         take: limit,
         order:{
           createdAt:'DESC'
@@ -438,9 +438,9 @@ export class ConversationsService extends ServiceBaseClass {
     }
   }
 
-  async findUserCoversations({ user }: RequestWithUser, page: number = 1, limit: number = 25) {
+  async findUserClosedCoversations({ user }: RequestWithUser, page: number = 1, limit: number = 25) {
     try {
-      page = page > 0 ? page : 1;
+      page = page >= 0 ? page : 0;
       limit = limit > 0 ? limit : 25;
       let data: Conversation[];
       let totalItems: number;
@@ -451,9 +451,10 @@ export class ConversationsService extends ServiceBaseClass {
           where: {
             user: {
               id: user.id
-            }
+            },
+            status: 'closed'
           },
-          skip: (page - 1) * limit,
+          skip: (page) * limit,
           take: limit,
           order:{
             createdAt:'DESC'
@@ -467,7 +468,142 @@ export class ConversationsService extends ServiceBaseClass {
               id: user.id
             }
           },
-          skip: (page - 1) * limit,
+          skip: (page) * limit,
+          take: limit,
+          order:{
+            createdAt:'DESC'
+          }
+        })
+      }
+
+      return {
+        status: 200,
+        data: Pagination.create(data, totalItems, page, limit),
+      };
+    } catch (error) {
+      console.log(error);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error) || error}`);
+
+      return {
+        status: error.status || error.code || error.statusCode || 500,
+        message: error.message || error.response.message,
+        error: error,
+      };
+    }
+  }
+
+  async findUserOpenCoversations({ user }: RequestWithUser, page: number = 1, limit: number = 25) {
+    try {
+      page = page >= 0 ? page : 0;
+      limit = limit > 0 ? limit : 25;
+      let data: Conversation[];
+      let totalItems: number;
+
+      if (user.profile !== 'consumer') {
+        [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
+          relations: { consumer: true },
+          where: {
+            user: {
+              id: user.id
+            },
+            status: 'open'
+          },
+          skip: (page) * limit,
+          take: limit,
+          order:{
+            createdAt:'DESC'
+          }
+        })
+      } else {
+        [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
+          relations: { consumer: true },
+          where: {
+            consumer: {
+              id: user.id
+            }
+          },
+          skip: (page) * limit,
+          take: limit,
+          order:{
+            createdAt:'DESC'
+          }
+        })
+      }
+
+      const lastMessages = await Promise.all(data.map((c) =>
+        this.dataSource.manager.findOne(ConversationMessage, {
+          select: {
+            conversation: {
+              id: true,
+            },
+          },
+          where: {
+            conversation: {
+              id: c.id
+            }
+          },
+          order: {
+            createdAt: 'DESC',
+          },
+          relations: {
+            conversation: true,
+          }
+        }))
+      )
+
+    let result = data.map((d: Conversation & {lastMessage: ConversationMessage}): Conversation & {lastMessage: ConversationMessage} => {
+      let lastMessage = lastMessages.find((m) => m?.conversation.id === d.id);
+      d.lastMessage = lastMessage
+      return d
+    }).sort((a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime());
+
+    return {
+      status: 200,
+      data: Pagination.create(result, totalItems, page, limit),
+    };
+    } catch (error) {
+      console.log(error);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error) || error}`);
+
+      return {
+        status: error.status || error.code || error.statusCode || 500,
+        message: error.message || error.response.message,
+        error: error,
+      };
+    }
+  }
+
+
+  async findUserCoversations({ user }: RequestWithUser, page: number = 1, limit: number = 25) {
+    try {
+      page = page >= 0 ? page : 0;
+      limit = limit > 0 ? limit : 25;
+      let data: Conversation[];
+      let totalItems: number;
+
+      if (user.profile !== 'consumer') {
+        [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
+          relations: { consumer: true },
+          where: {
+            user: {
+              id: user.id
+            }
+          },
+          skip: (page) * limit,
+          take: limit,
+          order:{
+            createdAt:'DESC'
+          }
+        })
+      } else {
+        [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
+          relations: { consumer: true },
+          where: {
+            consumer: {
+              id: user.id
+            }
+          },
+          skip: (page) * limit,
           take: limit,
           order:{
             createdAt:'DESC'
@@ -501,6 +637,7 @@ export class ConversationsService extends ServiceBaseClass {
         d.lastMessage = lastMessage
         return d
       }).sort((a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime());
+
       return {
         status: 200,
         data: Pagination.create(result, totalItems, page, limit),
@@ -548,7 +685,7 @@ export class ConversationsService extends ServiceBaseClass {
 
   async findMessages(id: string, page: number = 1, limit: number = 25) {
     try {
-      page = page > 0 ? page : 1;
+      page = page >= 0 ? page : 0;
       limit = limit > 0 ? limit : 25;
       const conversation = await this.dataSource.manager.findOne(Conversation, {
         relations: {
@@ -568,7 +705,7 @@ export class ConversationsService extends ServiceBaseClass {
             id: conversation.id
           }
         },
-        skip: (page - 1) * limit,
+        skip: (page) * limit,
         take: limit,
         order: {
           createdAt: 'DESC'

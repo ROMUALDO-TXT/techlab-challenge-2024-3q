@@ -7,14 +7,15 @@ import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { SearchUserDto } from './dto/search-user.dto';
 import { Response } from 'express';
+import { ProfilesAllowed } from 'src/auth/decorators/profiles.decorator';
 
 @ApiTags("Usuarios")
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
-  @Public()
   @Post()
+  @ProfilesAllowed('sudo')
   @HttpCode(HttpStatus.OK)
   @ApiCreatedResponse({
     description: 'Registro criado com sucesso'
@@ -24,7 +25,8 @@ export class UsersController {
     return response.status(res.status).send(res);
   }
 
-  @Get('')
+  @Get('self')
+  @ProfilesAllowed('sudo', 'standard')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'
@@ -43,8 +45,8 @@ export class UsersController {
     return response.status(res.status).send(res);
   }
 
-  @Public()
   @Get(':id')
+  @ProfilesAllowed('sudo')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'
@@ -62,9 +64,9 @@ export class UsersController {
     const res = await this.usersService.findOne(id);
     return response.status(res.status).send(res);
   }
-
-  @Public()
+ 
   @Get('')
+  @ProfilesAllowed('sudo')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'
@@ -87,8 +89,8 @@ export class UsersController {
     return response.status(res.status).send(res);
   }
 
-  @Public()
   @Post('/search')
+  @ProfilesAllowed('sudo')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'
@@ -112,8 +114,8 @@ export class UsersController {
     return response.status(res.status).send(res);
   }
 
-  @Public()
   @Patch()
+  @ProfilesAllowed('sudo', 'standard')
   @HttpCode(HttpStatus.OK)
   @ApiCreatedResponse({
     description: 'Registro atualizado com sucesso'
@@ -136,8 +138,8 @@ export class UsersController {
     return response.status(res.status).send(res);
   }
 
-  @Public()
   @Patch('availability')
+  @ProfilesAllowed('sudo', 'standard')
   @HttpCode(HttpStatus.OK)
   @ApiCreatedResponse({
     description: 'Registro atualizado com sucesso'
@@ -160,7 +162,7 @@ export class UsersController {
     return response.status(res.status).send(res);
   }
 
-  @Public()
+  @ProfilesAllowed('sudo')
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({

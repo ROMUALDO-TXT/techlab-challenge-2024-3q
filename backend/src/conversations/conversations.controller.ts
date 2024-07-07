@@ -14,7 +14,6 @@ import { RateConversationDto } from './dto/rate-conversation.dto';
 export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) { }
 
-  // @Permissions('users:*', 'users:write')
   @Public()
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -48,8 +47,8 @@ export class ConversationsController {
     return response.status(res.status).send(res);
   }
 
-  @Public()
   @Get('all')
+  @ProfilesAllowed('sudo')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'
@@ -73,7 +72,7 @@ export class ConversationsController {
   }
 
   @Get('')
-  @ProfilesAllowed('consumer')
+  @ProfilesAllowed('consumer', 'standard', 'sudo')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'
@@ -94,6 +93,57 @@ export class ConversationsController {
     @Res() response: Response
   ) {
     const res = await this.conversationsService.findUserCoversations(request, page, limit);
+    return response.status(res.status).send(res);
+  }
+
+  @Get('open')
+  @ProfilesAllowed('consumer', 'standard', 'sudo')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    description: 'Registro encontrado'
+  })
+  @ApiNotFoundResponse({
+    description: 'Registro não encontrado'
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Usuário não autenticado'
+  })
+  @ApiForbiddenResponse({
+    description: 'Nível de acesso insuficiente'
+  })
+  async findUserOpenConversations(
+    @Req() request: RequestWithUser,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Res() response: Response
+  ) {
+    const res = await this.conversationsService.findUserOpenCoversations(request, page, limit);
+    return response.status(res.status).send(res);
+  }
+
+
+  @Get('closed')
+  @ProfilesAllowed('consumer', 'standard', 'sudo')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    description: 'Registro encontrado'
+  })
+  @ApiNotFoundResponse({
+    description: 'Registro não encontrado'
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Usuário não autenticado'
+  })
+  @ApiForbiddenResponse({
+    description: 'Nível de acesso insuficiente'
+  })
+  async findUserClosedConversations(
+    @Req() request: RequestWithUser,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Res() response: Response
+  ) {
+    const res = await this.conversationsService.findUserClosedCoversations(request, page, limit);
     return response.status(res.status).send(res);
   }
 

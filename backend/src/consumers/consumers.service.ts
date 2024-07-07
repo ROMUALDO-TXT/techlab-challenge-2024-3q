@@ -112,9 +112,9 @@ export class ConsumersService extends ServiceBaseClass {
   }
 
 
-  async findAll(page: number = 1, limit: number = 25) {
+  async findAll(page: number, limit: number = 25) {
     try {
-      page = page > 0 ? page : 1;
+      page = page >= 0 ? page : 0;
       limit = limit > 0 ? limit : 25;
       const [messages, count] = await this.dataSource.manager.findAndCount(Consumer, {
         select: {
@@ -122,8 +122,9 @@ export class ConsumersService extends ServiceBaseClass {
           firstName: true,
           lastName: true,
           email: true,
+          birthDate: true,
         },
-        skip: (page - 1) * limit,
+        skip: (page) * limit,
         take: limit,
         order: {
           createdAt: 'DESC'

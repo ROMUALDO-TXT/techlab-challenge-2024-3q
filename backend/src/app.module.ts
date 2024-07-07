@@ -40,7 +40,7 @@ import { ScheduleModule } from '@nestjs/schedule';
         ConversationMessage,
         ConversationFile,
       ],
-      logging: true,
+      logging: false,
       synchronize: true,
     }),
     WinstonModule.forRoot({

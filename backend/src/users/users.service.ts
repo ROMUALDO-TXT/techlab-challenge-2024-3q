@@ -11,6 +11,7 @@ import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
 import { JwtService } from '@nestjs/jwt';
 import { Pagination } from 'src/domain/helpers/pagination.dto';
 import { SearchUserDto } from './dto/search-user.dto';
+import { Conversation } from 'src/domain/entities/Conversation';
 
 @Injectable()
 export class UsersService extends ServiceBaseClass {
@@ -31,7 +32,7 @@ export class UsersService extends ServiceBaseClass {
         email: createUserDto.email,
         password: pswd,
         profile: createUserDto.profile,
-        available: true,
+        available: false,
       });
 
       const result = await this.dataSource.manager.save(User, user);
@@ -70,7 +71,7 @@ export class UsersService extends ServiceBaseClass {
 
   async searchUser(searchUserDto: SearchUserDto, page: number = 1, limit: number = 15) {
     try {
-      page = page > 0 ? page : 1;
+      page = page >= 0 ? page : 0;
       limit = limit > 0 ? limit : 15;
 
       const query = this.dataSource.createQueryBuilder()
@@ -95,7 +96,7 @@ export class UsersService extends ServiceBaseClass {
     } catch (error) {
 
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(error)}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,
@@ -107,7 +108,7 @@ export class UsersService extends ServiceBaseClass {
 
   async findAll(page: number = 1, limit: number = 25) {
     try {
-      page = page > 0 ? page : 1;
+      page = page >= 0 ? page : 0;
       limit = limit > 0 ? limit : 25;
 
       const [data, totalItems] = await this.dataSource.manager.findAndCount(User, {
@@ -117,9 +118,35 @@ export class UsersService extends ServiceBaseClass {
           profile: true,
           email: true,
         },
-        skip: (page - 1) * limit,
+        skip: (page) * limit,
         take: limit,
       });
+
+      const ratings = await Promise.all(data.map((d) => {
+        return this.dataSource.manager.createQueryBuilder(Conversation, 'c')
+          .select('AVG(c.rate)', 'averageRate')
+          .addSelect('c.userId', 'userId')
+          .where('c.userId = :userId', { userId: d.id })
+          .andWhere('c.status = :status', { status: 'closed' })
+          .andWhere('c.rate IS NOT NULL')
+          .groupBy('c.userId')
+          .getRawOne();
+      }))
+
+      let result = data.map((d: User & { ratings: number }): User & { ratings: number } => {
+        let rate = ratings.find((r) => r && r.userId === d.id);
+        if (rate) {
+          d.ratings = rate.averageRate
+        }else{
+          d.ratings = 0
+        }
+        return d
+      })
+
+      return {
+        status: 200,
+        data: Pagination.create(result, totalItems, page, limit),
+      };
 
       return {
         status: 200,
@@ -128,7 +155,7 @@ export class UsersService extends ServiceBaseClass {
     } catch (error) {
 
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(error)}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,
@@ -162,7 +189,7 @@ export class UsersService extends ServiceBaseClass {
     } catch (error) {
 
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(error)}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,
@@ -195,7 +222,7 @@ export class UsersService extends ServiceBaseClass {
     } catch (error) {
 
 
-      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}.service]: ${JSON.stringify(error)}`);
+      this.logger.log("error", `[ERROR - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(error)}`);
 
       return {
         status: error.status || error.code || error.statusCode || 500,
