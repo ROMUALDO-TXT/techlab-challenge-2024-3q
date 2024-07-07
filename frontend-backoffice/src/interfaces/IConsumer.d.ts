@@ -1,5 +1,7 @@
 export interface IConsumer {
   id: string;
-  name: string;
-  document: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  birthDate: string;
 }

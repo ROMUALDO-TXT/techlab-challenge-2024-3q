@@ -10,7 +10,7 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { useForm } from 'react-hook-form'
-import { useAuthenticationContext } from '../hooks/useAuthenticationContext.js';
+import { useAuth } from '../contexts/AuthContext';
 
 function Copyright(props: any) {
   return (
@@ -26,9 +26,9 @@ function Copyright(props: any) {
 }
 
 export default function SignIn() {
-  const { signIn } = useAuthenticationContext()
+  const { signIn } = useAuth()
   const handleSubmit = ({ username, password }: any) => {
-    signIn({ username, password })
+    signIn(username, password).then(() => window.location.replace('/'))
   };
 
   const form = useForm()
