@@ -15,7 +15,9 @@ async function bootstrap() {
   fs.ensureDirSync(`${logPath}/info`);
   fs.ensureDirSync(`${logPath}/errors`);
   fs.ensureDirSync(`${logPath}/exceptions`);
-  
+  fs.ensureDirSync(`${processPath}/temp`);
+  fs.ensureDirSync(`${processPath}/uploads`);
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   useContainer(app.select(AppModule), { fallbackOnErrors: true });

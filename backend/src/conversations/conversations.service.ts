@@ -4,17 +4,23 @@ import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Pagination } from 'src/domain/helpers/pagination.dto';
 import { ServiceBaseClass } from 'src/domain/helpers/service.class';
-import { DataSource, IsNull, UpdateResult } from 'typeorm';
+import { DataSource, IsNull, QueryRunner, UpdateResult } from 'typeorm';
 import { Logger } from 'winston';
 import { Conversation } from 'src/domain/entities/Conversation';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
 import { User } from 'src/domain/entities/User';
 import { Consumer } from 'src/domain/entities/Consumer';
 import { AddMessageDto } from './dto/add-message.dto';
-import { ConversationMessage } from 'src/domain/entities/ConversationMessage';
+import { ConversationMessage, ConversationMessageBy } from 'src/domain/entities/ConversationMessage';
 import { AssignConversationDto } from './dto/assign-conversation.dto';
 import { RateConversationDto } from './dto/rate-conversation.dto';
 import { FinishConversationDto } from './dto/finish-conversation.dto';
+
+interface IAssignConversation {
+  conversationId: string,
+  userId: string,
+  username: string,
+}
 
 @Injectable()
 export class ConversationsService extends ServiceBaseClass {
@@ -87,13 +93,13 @@ export class ConversationsService extends ServiceBaseClass {
     }
   }
 
-  async conversationStack(page: number = 1, limit: number = 25) {
+  async conversationQueue(page: number = 1, limit: number = 25) {
     try {
       page = page > 0 ? page : 1;
       limit = limit > 0 ? limit : 25;
       const [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
         where: {
-          status: 'Pending',
+          status: 'pending',
           user: IsNull(),
         },
         relations: {
@@ -131,51 +137,89 @@ export class ConversationsService extends ServiceBaseClass {
     }
   }
 
-  async assignConversationUser(assignConversationDto: AssignConversationDto) {
+  async distributeQueue() {
     try {
-      const userExists = await this.dataSource.manager.findOne(User, {
-        where: {
-          id: assignConversationDto.userId
-        }
-      });
+      const rawSql = `
+      SELECT 
+        "user"."id" AS "userId", 
+        COALESCE("openConversations"."openConversationsCount", 0) AS "openConversationsCount",
+        "user"."username" AS "username" 
+      FROM "users" "user"
+      LEFT JOIN (
+        SELECT 
+          "conversation"."userId" AS "userId", 
+          COUNT("conversation"."id") AS "openConversationsCount"
+        FROM "conversations" "conversation"
+        WHERE 
+          "conversation"."status" = $1
+          AND "conversation"."deletedAt" IS NULL
+        GROUP BY "conversation"."userId"
+      ) "openConversations" 
+      ON "openConversations"."userId" = "user"."id"
+      WHERE 
+        "user"."available" = $2 
+        AND "user"."deletedAt" IS NULL;
+    `;
+      const status = 'open';
+      const available = true;
 
-      if (!userExists) throw new NotFoundException("User not found");
+      let users = await this.dataSource.query(rawSql, [status, available]) as {
+        userId: string,
+        username: string,
+        openConversationsCount: number
+      }[];
 
-      const openConversations = await this.dataSource.manager.count(Conversation, {
+      if (users.length < 0) throw new BadRequestException("No users available");
+
+      const openConversations = await this.dataSource.manager.find(Conversation, {
         where: {
-          user: userExists,
-          status: 'open',
+          status: 'pending',
+          user: IsNull(),
+        },
+        relations: {
+          consumer: true
+        },
+        order: {
+          createdAt: 'ASC',
         }
       })
 
-      //LIMITE DE CONVERSAS ABERTAS POR USER
-      if (openConversations >= 3) throw new BadRequestException("Open conversations limit exceeded for this user");
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.startTransaction();
 
-      const conversationExists = await this.dataSource.manager.findOne(Conversation, {
-        where: {
-          id: assignConversationDto.conversationId
-        }
-      });
+      let results: ConversationMessage[];
+      try {
+        const promises: (Promise<UpdateResult> | Promise<ConversationMessage>)[] = [];
+        
+        openConversations.forEach((c) => {
+          users = users.filter(user => user.openConversationsCount < 3);
+          if (users.length > 0) {
+            users.sort((a, b) => a.openConversationsCount - b.openConversationsCount);
+            users[0].openConversationsCount++;
 
-      if (!conversationExists) throw new NotFoundException("Conversation not found");
+            promises.concat(this.assignConversationUser(queryRunner, {
+              userId: users[0].userId,
+              username: users[0].username,
+              conversationId: c.id
+            }))
+          }
+        })
 
-      const result = await this.dataSource.manager.update(Conversation, {
-        id: conversationExists.id
-      }, {
-        user: userExists,
-        startedAt: new Date(),
-        status: 'open',
-      });
+        results = (await Promise.all(promises)).filter(x=> x instanceof ConversationMessage);
 
-      if (result) {
-        this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
+        await queryRunner.commitTransaction();
+      } catch (err) {
+        console.log(err);
+        await queryRunner.rollbackTransaction();
+      } finally {
+        await queryRunner.release();
       }
 
+      this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(results)}`);
       return {
         status: 200,
-        data: result
+        data: results,
       };
-
     } catch (error) {
       this.logger.log(
         'error',
@@ -194,6 +238,33 @@ export class ConversationsService extends ServiceBaseClass {
         error: error,
       };
     }
+  }
+
+  private assignConversationUser(queryRunner: QueryRunner, { conversationId, userId, username }: IAssignConversation) {
+    const upadatePromise = queryRunner.manager.update(Conversation, {
+      id: conversationId
+    }, {
+      user: {
+        id: userId
+      },
+      startedAt: new Date(),
+      status: 'open',
+    });
+
+    const messagePromise = queryRunner.manager.save(ConversationMessage,
+      queryRunner.manager.create(ConversationMessage, {
+        conversation: {
+          id: conversationId,
+        },
+        by: ConversationMessageBy.System,
+        content: `O Agente ${username} foi designado para atender o seu chamado!`
+      })
+    )
+
+    return [
+      upadatePromise,
+      messagePromise
+    ]
   }
 
   async finishConversation(finishConversationDto: FinishConversationDto) {
@@ -291,7 +362,6 @@ export class ConversationsService extends ServiceBaseClass {
 
   async addMessage(addMessageDto: AddMessageDto) {
     try {
-
       const conversationExists = await this.dataSource.manager.findOne(Conversation, {
         where: {
           id: addMessageDto.conversationId,
@@ -347,6 +417,9 @@ export class ConversationsService extends ServiceBaseClass {
         },
         skip: (page - 1) * limit,
         take: limit,
+        order:{
+          createdAt:'DESC'
+        }
       })
 
       return {
@@ -382,6 +455,9 @@ export class ConversationsService extends ServiceBaseClass {
           },
           skip: (page - 1) * limit,
           take: limit,
+          order:{
+            createdAt:'DESC'
+          }
         })
       } else {
         [data, totalItems] = await this.dataSource.manager.findAndCount(Conversation, {
@@ -393,6 +469,9 @@ export class ConversationsService extends ServiceBaseClass {
           },
           skip: (page - 1) * limit,
           take: limit,
+          order:{
+            createdAt:'DESC'
+          }
         })
       }
 
@@ -417,11 +496,11 @@ export class ConversationsService extends ServiceBaseClass {
         }))
       )
 
-      let result = data.map((d) => {
+      let result = data.map((d: Conversation & {lastMessage: ConversationMessage}): Conversation & {lastMessage: ConversationMessage} => {
         let lastMessage = lastMessages.find((m) => m?.conversation.id === d.id);
-        if (lastMessage) Object.assign(d, { lastMessage, ...d });
+        d.lastMessage = lastMessage
         return d
-      })
+      }).sort((a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime());
       return {
         status: 200,
         data: Pagination.create(result, totalItems, page, limit),

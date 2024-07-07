@@ -1,14 +1,13 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Query, Req, Res } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
-import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
 import { AddMessageDto } from './dto/add-message.dto';
-import { AssignConversationDto } from './dto/assign-conversation.dto';
 import { Response } from 'express';
 import { ProfilesAllowed } from 'src/auth/decorators/profiles.decorator';
+import { RateConversationDto } from './dto/rate-conversation.dto';
 
 @ApiTags("Conversations")
 @Controller('conversations')
@@ -25,10 +24,9 @@ export class ConversationsController {
   async create(@Body() createConversationDto: CreateConversationDto, @Res() response: Response) {
     const res = await this.conversationsService.create(createConversationDto);
     return response.status(res.status).send(res);
-}
+  }
 
-  // @Permissions('users:*', 'users:write')
-  @Public()
+  @ProfilesAllowed('sudo', 'standard', 'consumer')
   @Post('message')
   @HttpCode(HttpStatus.OK)
   @ApiCreatedResponse({
@@ -37,21 +35,18 @@ export class ConversationsController {
   async addMessage(@Body() addMessageDto: AddMessageDto, @Res() response: Response) {
     const res = await this.conversationsService.addMessage(addMessageDto);
     return response.status(res.status).send(res);
-}
+  }
 
-  @Public()
-  @Post('assign')
+  @ProfilesAllowed('sudo', 'standard', 'consumer')
+  @Post('rate')
   @HttpCode(HttpStatus.OK)
   @ApiCreatedResponse({
     description: 'Registro criado com sucesso'
   })
-  async assignConversation(
-    @Body() assignConversation: AssignConversationDto, 
-    @Res() response: Response
-  ) {
-    const res = await this.conversationsService.assignConversationUser(assignConversation);
+  async rateConversation(@Body() rateConversationDto: RateConversationDto, @Res() response: Response) {
+    const res = await this.conversationsService.rateConversation(rateConversationDto);
     return response.status(res.status).send(res);
-}
+  }
 
   @Public()
   @Get('all')
@@ -69,7 +64,7 @@ export class ConversationsController {
     description: 'Nível de acesso insuficiente'
   })
   async findAll(
-    @Query('page') page: number, 
+    @Query('page') page: number,
     @Query('limit') limit: number,
     @Res() response: Response
   ) {
@@ -93,8 +88,8 @@ export class ConversationsController {
     description: 'Nível de acesso insuficiente'
   })
   async findUserConversations(
-    @Req() request: RequestWithUser, 
-    @Query('page') page: number, 
+    @Req() request: RequestWithUser,
+    @Query('page') page: number,
     @Query('limit') limit: number,
     @Res() response: Response
   ) {
@@ -138,9 +133,9 @@ export class ConversationsController {
     description: 'Nível de acesso insuficiente'
   })
   async findOneMessages(
-    @Param('id') id: string, 
-    @Query('page') page: number, 
-    @Query('limit') limit: number, 
+    @Param('id') id: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
     @Res() response: Response) {
     const res = await this.conversationsService.findMessages(id, page, limit);
     return response.status(res.status).send(res);
@@ -165,5 +160,5 @@ export class ConversationsController {
   async remove(@Param('id') id: string, @Res() response: Response) {
     const res = await this.conversationsService.remove(id);
     return response.status(res.status).send(res);
-}
+  }
 }

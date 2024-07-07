@@ -5,11 +5,11 @@ import { ConversationMessageBy } from 'src/domain/entities/ConversationMessage';
 
 export class AddMessageDto {
   @ApiProperty()
-  content!: string;
+  content: string;
 
   @ApiProperty()
-  by!: ConversationMessageBy;
+  by: ConversationMessageBy;
   
   @ApiProperty()
-  conversationId!: string;
+  conversationId: string;
 }

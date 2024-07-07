@@ -2,8 +2,10 @@ import { WebSocketGateway, SubscribeMessage, MessageBody, ConnectedSocket, WebSo
 import { Server, Socket } from 'socket.io';
 import { ConversationsService } from './conversations.service';
 import { AddMessageDto } from './dto/add-message.dto';
-import { UseGuards } from '@nestjs/common';
+import { Get, UseGuards } from '@nestjs/common';
 import { WsJwtGuard } from 'src/auth/guards/ws-jwt-auth.guard';
+import { Cron } from '@nestjs/schedule';
+import { Public } from 'src/auth/decorators/public.decorator';
 
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -28,7 +30,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.server.emit('isTyping', {
             conversationId: data.conversationId,
             user: data.user
-        }) 
+        })
     }
 
     @UseGuards(WsJwtGuard)
@@ -42,5 +44,31 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             conversationId: savedMessage.data.conversation.id,
             createdAt: savedMessage.data.createdAt,
         });
+    }
+
+    // @Cron('30 * * * * *')
+    async sendQueueCount() {
+        const queueSize = (await this.conversationsService.conversationQueue()).data.totalItems
+        this.server.emit('queueCount', { queueSize: queueSize });
+    }
+
+    @Cron('45 * * * * *')
+    @Get('queue/assign')
+    @Public()
+    async distributeQueue() {
+        const messages = await this.conversationsService.distributeQueue();
+        console.log(messages)
+        if (messages.data.length > 0) {
+
+            messages.data.forEach(message =>
+                this.server.emit('message', {
+                    id: message.id,
+                    content: message.content,
+                    by: message.by,
+                    conversationId: message.conversation.id,
+                    createdAt: message.createdAt,
+                })
+            )
+        }
     }
 }

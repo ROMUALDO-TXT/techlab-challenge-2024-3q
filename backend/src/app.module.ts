@@ -15,8 +15,10 @@ import { ConversationMessage } from './domain/entities/ConversationMessage';
 import { Consumer } from './domain/entities/Consumer';
 import { ConversationsModule } from './conversations/conversations.module';
 import { ConsumersModule } from './consumers/consumers.module';
-import { JwtModule } from '@nestjs/jwt';
-import { WsJwtGuard } from './auth/guards/ws-jwt-auth.guard';
+import { ConversationFile } from './domain/entities/ConversationFile';
+import { FilesModule } from './files/files.module';
+import { ScheduleModule } from '@nestjs/schedule';
+
 
 @Module({
   imports: [
@@ -36,8 +38,9 @@ import { WsJwtGuard } from './auth/guards/ws-jwt-auth.guard';
         Consumer,
         Conversation,
         ConversationMessage,
+        ConversationFile,
       ],
-      logging: false,
+      logging: true,
       synchronize: true,
     }),
     WinstonModule.forRoot({
@@ -63,10 +66,12 @@ import { WsJwtGuard } from './auth/guards/ws-jwt-auth.guard';
 
       ],
     }),
+    ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
     ConversationsModule,
     ConsumersModule,
+    FilesModule,
   ],
   providers: [
     {

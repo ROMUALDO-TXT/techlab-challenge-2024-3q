@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, type Relation } from "typeorm";
-import { Conversation } from "./Conversation.js";
-import { User } from "./User.js";
+import { Conversation } from "./Conversation";
+import { User } from "./User";
+import { ConversationFile } from "./ConversationFile";
 
 export enum ConversationMessageBy {
   Consumer = 'consumer',
@@ -19,6 +20,16 @@ export class ConversationMessage {
 
   @Column('enum', { enum: ConversationMessageBy })
   by: ConversationMessageBy
+
+  //message type;
+  @Column({
+    default: 'text'
+  })
+  type: string
+
+  @ManyToOne(() => ConversationFile)
+  @JoinColumn()
+  file?: ConversationFile;
 
   @ManyToOne(() => Conversation, { nullable: false })
   @JoinColumn()

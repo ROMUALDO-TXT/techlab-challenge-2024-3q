@@ -17,5 +17,5 @@ export const multerDiskConfig = {
 }
 
 
-export const globalFileInterceptor = FileInterceptor('arquivo', multerDiskConfig );
+export const globalFileInterceptor = FileInterceptor('file', multerDiskConfig );
 

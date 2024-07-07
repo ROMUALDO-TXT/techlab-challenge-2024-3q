@@ -23,6 +23,7 @@ export class Conversation {
   messages: ConversationMessage[]
 
   @Column({
+    enum: ['pending', 'opened', 'closed'],
     default: 'pending'
   }) //pending //opened //closed
   status: string;
