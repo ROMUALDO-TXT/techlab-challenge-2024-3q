@@ -167,8 +167,6 @@ const Navbar = ({ conversations, selectedConversation, queueCount, onSelectConve
                             </ListItemButton>
                         )) : ""}
                     </List>
-
-                    {/* theme toggler */}
                 </Box>
             </Drawer >
         </Box >

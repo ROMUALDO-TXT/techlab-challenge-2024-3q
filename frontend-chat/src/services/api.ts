@@ -65,7 +65,7 @@ export const createConversation = async (subject: string, consumerId: string, co
 
 export const rateConversation = async (rating: number, conversationId: string) => {
   try {
-    const response = await api.post(`/conversations/rate`, {
+    const response = await api.patch(`/conversations/rate`, {
       rating,
       conversationId,
     }, {

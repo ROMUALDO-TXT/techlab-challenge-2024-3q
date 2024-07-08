@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, Typography, List, ListItem, Button, Link, Divider, useTheme } from "@mui/material";
-import { displayFile, getMessages } from "../services/api";
+import { getMessages } from "../services/api";
 import { IMessage } from "../interfaces/IMessage";
 import { useCookies } from "react-cookie";
 import { IMessagesPaginationData } from "../interfaces/IPagination";
@@ -12,6 +12,7 @@ import { useSocket } from "../contexts/SocketContext";
 import { ChatInput } from "./ChatInput";
 import FinishConversationForm from "./FinishConversationForm";
 import { CheckCircle } from "@mui/icons-material";
+import { LikertScale } from "./LikertScale";
 
 export interface IConversationMessageInput {
   content: string
@@ -33,7 +34,7 @@ export function Chat({ conversation }: ConversationProps) {
   });
 
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
+  const [_, setIsTyping] = useState(false);
 
   useEffect(() => {
     if (socket) {
@@ -251,20 +252,19 @@ export function Chat({ conversation }: ConversationProps) {
                       return (<Typography variant='body1'>{message.content}</Typography>)
                       break;
                     case 'file':
-                      if (message.file)
+                      // if (message.file)
                         // return (<FileDisplay id={message.file.id}></FileDisplay>)
                         break;
                     case 'audio':
-                      if (message.file)
+                      // if (message.file)
                         // return (<AudioDisplay id={message.file.id}></AudioDisplay>)
                         break;
                     case 'image':
-                      if (message.file)
+                      // if (message.file)
                         // return (<ImageDisplay id={message.file.id}></ImageDisplay>)
                         break;
                     case 'rate':
-                      // return (<Likert></Likert>)
-
+                      return <LikertScale conversation={conversation} message={message}/> 
                       break;
                   }
                 })()}

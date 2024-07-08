@@ -8,6 +8,7 @@ import { Box, Divider, Drawer, List, ListItemButton, ListItemText } from '@mui/m
 import { IConversationList } from '../interfaces/IConversation';
 import { Dispatch, SetStateAction } from 'react';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import { ThemeToggler } from './ThemeToggler';
 
 interface ISidebarProps {
     conversations: IConversationList[];
@@ -40,6 +41,7 @@ const Navbar = ({ conversations, selectedConversation, onCreateNewConversation, 
                         >
                             Sair
                         </Button>
+                        <ThemeToggler />
                     </Box>
                 </Toolbar>
             </AppBar>

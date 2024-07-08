@@ -18,7 +18,7 @@ interface IUsersTableProps {
 export const UsersTable = ({ users, onCreateNewUser, limit, setLimit, page, setPage }: IUsersTableProps) => {
     const [cookies] = useCookies(['techlab-backoffice-user']);
 
-    const handleChangePage = (event: unknown, newPage: number) => {
+    const handleChangePage = (_: unknown, newPage: number) => {
         setPage(newPage);
     };
 
@@ -27,9 +27,9 @@ export const UsersTable = ({ users, onCreateNewUser, limit, setLimit, page, setP
         setPage(0);
     };
 
-    const handleUpdate = (event: unknown) => {
+    // const handleUpdate = (event: unknown) => {
 
-    }
+    // }
 
     const handleDelete = async (id: string) => {
         const confirmed = window.confirm('Tem certeza de que deseja deletar este usuário?');
@@ -40,9 +40,6 @@ export const UsersTable = ({ users, onCreateNewUser, limit, setLimit, page, setP
             }
         }
     };
-
-    // Table headers
-    const tableHeaders = ['Email', 'Username', 'Disponível', 'Avaliação', 'Perfil', 'Ações'];
 
     return (
         <Box sx={{

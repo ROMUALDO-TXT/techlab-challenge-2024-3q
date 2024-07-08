@@ -1,37 +1,29 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { LoadingButton } from "@mui/lab";
-import { Box, Typography, List, ListItem, Grid, TextField, Button, Link } from "@mui/material";
+import { useEffect, useRef, useState } from "react";
+import { Box, Typography, List, ListItem, Button, Link, Divider, useTheme } from "@mui/material";
 import { getMessages } from "../services/api";
-import { useForm } from "react-hook-form";
-import SendIcon from '@mui/icons-material/Send';
-import { IMessage, INewMessage } from "../interfaces/IMessage";
+import { IMessage } from "../interfaces/IMessage";
 import { useCookies } from "react-cookie";
 import { IMessagesPaginationData } from "../interfaces/IPagination";
 import FileDisplay from "./FileDisplay";
 import AudioDisplay from "./AudioDisplay";
 import { ImageDisplay } from "./ImageDisplay";
-import { io, Socket } from "socket.io-client";
+import { useSocket } from "../contexts/SocketContext";
+import { IConversationList } from "../interfaces/IConversation";
+import { ChatInput } from "./ChatInput";
+import { LikertScale } from "./LikertScale";
 
 export interface IConversationMessageInput {
   content: string
 }
 
 interface ConversationProps {
-  conversationId: string
+  conversation: IConversationList
 }
 
-export function Chat({ conversationId }: ConversationProps) {
+export function Chat({ conversation }: ConversationProps) {
   const listRef = useRef<HTMLUListElement>(null);
-  const [cookies] = useCookies(['techlab-chat-token', 'techlab-chat-user']);
-  const socketRef = useRef<Socket>(
-    io(import.meta.env.VITE_API_URL, {
-      auth: {
-        token: "Bearer " + cookies['techlab-chat-token'],
-      },
-      transports: ['websocket'],
-      timeout: 20000,
-    })
-  );
+  const [cookies] = useCookies(['techlab-chat-user']);
+  const { socket } = useSocket()
 
   const limit = 50;
   const [messagesData, setMessagesData] = useState<IMessagesPaginationData>({
@@ -42,7 +34,27 @@ export function Chat({ conversationId }: ConversationProps) {
   });
 
   const [messages, setMessages] = useState<IMessage[]>([]);
-  // const [isTyping, setIsTyping] = useState(false);
+  const [_, setIsTyping] = useState(false);
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('message', (message: IMessage) => {
+        setMessages((prevMessages) => [...prevMessages, message]);
+      });
+
+      socket.on('isTyping', (data) => {
+        if (data.conversationId === conversation.id && data.user !== cookies['techlab-chat-user'].id) {
+          setIsTyping(true);
+        }
+      });
+
+      return () => {
+        socket.off('message');
+        socket.off('isTyping');
+      };
+    }
+  }, [socket]);
+
 
   const fetchMessages = async (conversationId: string, page: number, limit: number) => {
     if (listRef.current) {
@@ -65,38 +77,9 @@ export function Chat({ conversationId }: ConversationProps) {
     })
   };
 
-  const setupSocket = () => {
-    socketRef.current.connect();
-
-    socketRef.current.on('connect', () => {
-      console.log('Connected to WebSocket');
-    });
-
-    socketRef.current.on('disconnect', () => {
-      console.log('Disconnected from WebSocket');
-    });
-
-    socketRef.current.on('connect_error', (error: Error) => {
-      socketRef.current.disconnect();
-      console.error('WebSocket connection error:', error.message);
-    });
-
-    socketRef.current.on('error', (error: Error) => {
-      console.error('WebSocket error:', error.message);
-    });
-  };
-
   useEffect(() => {
-    setupSocket();
-
-    return () => {
-      socketRef.current.disconnect();
-    };
-  }, []);
-
-  useEffect(() => {
-    fetchMessages(conversationId, 0, limit);
-  }, [conversationId, limit]);
+    fetchMessages(conversation.id, 0, limit);
+  }, [conversation.id, limit]);
 
   useEffect(() => {
     if (listRef.current) {
@@ -108,7 +91,7 @@ export function Chat({ conversationId }: ConversationProps) {
 
   const handleLoadMore = () => {
     if ((messagesData.page + 1 * limit) <= messagesData.totalItems) {
-      getMessages(conversationId, messagesData.page + 1, limit).then((result) => {
+      getMessages(conversation.id, messagesData.page + 1, limit).then((result) => {
         setMessages(result.data.messages.items.concat(messages))
         setMessagesData({
           page: result.data.messages.page,
@@ -122,88 +105,73 @@ export function Chat({ conversationId }: ConversationProps) {
     }
   }
 
-  useEffect(() => {
-    socketRef.current.on('message', (message: IMessage) => {
-      setMessages((prevMessages) => [...prevMessages, message]);
-    });
+  const theme = useTheme();
 
-    return () => {
-      socketRef.current.off('message');
-    };
-  }, [socketRef.current]);
-
-
-  // useEffect(() => {
-  //   if (socketRef.current) {
-  //     socketRef.current.on('isTyping', (data) => {
-  //       if (data.conversationId === conversationId && data.user !== cookies['techlab-chat-user'].id) {
-  //         setIsTyping(true);
-  //       }
-  //     });
-
-  //     return () => {
-  //       socketRef.current.off('isTyping');
-  //     };
-  //   }
-  // }, [socketRef.current]);
-
-  const sendMessage = (content: INewMessage) => {
-    socketRef.current.emit('sendMessage', {
-      ...content,
-    });
-  };
-
-  const handleMessageChange = () => {
-    // if (!socketRef.current) throw new Error('socketRef.current error')
-    // socketRef.current.emit('typing', {
-    //   conversationId,
-    //   user: cookies['techlab-chat-user'].id,
-    // });
-  };
-
-  const form = useForm({
-    defaultValues: { content: '' },
-  })
-
-  const handleSubmit = useCallback((message: IConversationMessageInput) => {
-    message.content = message.content?.trim()
-
-    if (!message.content) return;
-
-    form.reset();
-    sendMessage({
-      conversationId: conversationId,
-      by: 'consumer',
-      content: message.content,
-    })
-
-  }, [form])
-
-  const submit = form.handleSubmit(handleSubmit)
-
-  const handleKeyPress = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Enter') return
-
-    console.log(event)
-
-    if (event.shiftKey) return
-
-    event.stopPropagation()
-
-    submit(event)
-  }, [submit])
+  const borderColor = theme.palette.mode === 'light' ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.12)";
 
   return (
     <Box display="flex" flexDirection="column" height="100%">
-      <Box height='80%'>
-
-
+      <Box sx={{
+        display: 'flex',
+        height: '80px',
+        borderBottom: '1px solid ' + borderColor
+      }}>
+        <Box sx={{
+          paddingTop: 2,
+          paddingBottom: 1,
+          width: '25%',
+          borderRight: '1px solid ' + borderColor
+        }}>
+          <Typography align="center">
+            <strong>Atendente</strong>
+          </Typography>
+          <Typography align="center">
+            {conversation.user ? conversation.user.username : "aguardando"}
+          </Typography>
+        </Box>
+        <Box sx={{
+          paddingTop: 2,
+          paddingBottom: 1,
+          width: '50%',
+          borderRight: '1px solid ' + borderColor
+        }}>
+          <Typography align="center">
+            <strong>Assunto do atendimento</strong>
+          </Typography>
+          <Typography align="center">
+            {conversation.subject}
+          </Typography>
+        </Box>
+        <Box sx={{
+          paddingTop: 2,
+          paddingBottom: 1,
+          width: '25%',
+          borderRight: '1px solid ' + borderColor
+        }}>
+          <Typography align="center">
+            <strong>Status do atendimento</strong>
+          </Typography>
+          <Typography align="center">
+            {(() => {
+              switch (conversation.status) {
+                case 'pending':
+                  return "Pendente";
+                case 'open':
+                  return "Aberto";
+                case 'closed':
+                  return "Encerrado";
+              }
+            })()}
+          </Typography>
+        </Box>
+      </Box>
+      <Box height='75%'>
         <List ref={listRef} sx={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           overflowY: 'auto',
-          maxHeight: 'calc(100vh - 200px)',
+          maxHeight: 'calc(100vh - 240px)',
           padding: '10px',
           '&::-webkit-scrollbar': {
             width: '4px',
@@ -251,14 +219,9 @@ export function Chat({ conversationId }: ConversationProps) {
                 marginBottom: '10px',
               }}
             >
-              {message.by === 'system' && (
-                <Typography variant='body2' fontStyle='italic' color="GrayText" gutterBottom>
-                  Mensagem Automática
-                </Typography>
-              )}
               <div
                 style={{
-                  backgroundColor: message.by === 'consumer' ? 'rgba(220, 248, 198, 0.2)' : 'rgba(224, 224, 224, 0.1)',
+                  backgroundColor: message.by === 'consumer' ? 'rgba(220, 248, 198, 0.363)' : 'rgba(224, 224, 224, 0.319)',
                   borderRadius: '10px',
                   padding: '10px',
                   maxWidth: '70%',
@@ -283,40 +246,65 @@ export function Chat({ conversationId }: ConversationProps) {
                         return (<ImageDisplay id={message.file.id}></ImageDisplay>)
                       break;
                     case 'rate':
-                      // return (<Likert></Likert>)
-
+                      return (<LikertScale conversation={conversation} message={message}/>)
                       break;
                   }
                 })()}
               </div>
-              <Typography
-                variant='overline'
-                sx={{
-                  alignSelf: message.by === 'consumer' ? 'flex-end' : 'flex-start',
-                  marginTop: '5px',
-                  color: 'text.secondary',
-                }}
-              >
-                {new Date(message.createdAt).toLocaleString()}
-              </Typography>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+                {(() => {
+                  switch (message.by) {
+                    case 'system':
+                      return (
+                        <Typography variant='body2' mr={2} fontStyle='italic' color="GrayText">
+                          Mensagem Automática
+                        </Typography>
+                      )
+                    case 'consumer':
+                      return (
+                        <Typography variant='body2' mr={2} color="GrayText">
+                          Eu
+                        </Typography>
+                      )
+                    case 'user':
+                      return (
+                        <Typography variant='body2' mr={2} color="GrayText">
+                          Agente
+                        </Typography>
+                      )
+                  }
+                })()}
+                <Typography
+                  variant='overline'
+                  sx={{
+                    alignSelf: message.by === 'consumer' ? 'flex-end' : 'flex-start',
+                    marginTop: '5px',
+                    color: 'text.secondary',
+                  }}
+                >
+                  {new Date(message.createdAt).toLocaleString()}
+                </Typography>
+              </Box>
             </ListItem>
           ))}
 
         </List>
       </Box>
-      <Box mt='auto' px={4}>
-        <Grid container spacing={2}>
-          <Grid item sm={11}>
-            <TextField {...form.register('content')} placeholder="Digite uma mensagem" multiline fullWidth onSubmit={submit} onKeyUp={handleKeyPress} onChange={handleMessageChange} />
-          </Grid>
-          <Grid item sm={1} mt='auto'>
-            <LoadingButton loading={false} variant="contained" style={{ padding: 16 }} startIcon={<SendIcon />} onClick={submit}>
-              Send
-            </LoadingButton>
-            {/* <button onClick={handleLoadMore}>mais</button> */}
-          </Grid>
-        </Grid>
-      </Box>
+      <Divider />
+      {conversation.status !== 'closed' ? (
+        <ChatInput conversationId={conversation.id} />
+      ) : (
+        <Typography variant={'h6'} py={3} align="center" sx={{
+          paddingTop: 2,
+          marginBottom: -6,
+        }}>
+          Esta conversa foi encerrada.
+        </Typography>
+      )}
     </Box>
   )
 }

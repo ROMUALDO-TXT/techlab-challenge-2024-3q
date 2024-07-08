@@ -10,6 +10,7 @@ export interface IConversation {
 export interface IConversationList {
   id: string;
   consumer: IConsumer;
+  user?: IUser,
   subject: string
   status: string;
   closingReason?: string;

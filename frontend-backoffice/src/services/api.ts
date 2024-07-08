@@ -10,6 +10,8 @@ api.defaults.headers.get['Access-Control-Allow-Origin'] = '*';
 //CONVERSATIONS AND MESSAGES
 export const finishConversation = async ( conversationId:string, closingReason: string) => {
   try {
+    console.log(conversationId)
+
     const response = await api.patch(`/conversations/finish`, {
       conversationId: conversationId,
       closingReason: closingReason
@@ -18,6 +20,8 @@ export const finishConversation = async ( conversationId:string, closingReason: 
         'Content-Type': 'application/json'
       }
     });
+
+    console.log(response);
     if (response.status === 200) {
       return { status: 200, body: "success" };
     }

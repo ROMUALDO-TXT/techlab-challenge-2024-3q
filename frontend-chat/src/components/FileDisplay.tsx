@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Link } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Box } from '@mui/material';
 import { displayFile } from '../services/api';
 
 export interface FileDisplayProps{
@@ -7,7 +7,7 @@ export interface FileDisplayProps{
 }
 
 export const FileDisplay = ({ id }: FileDisplayProps) => {
-    const [file, setFile] = useState();
+    const [_, setFile] = useState();
 
     useEffect(() => {
         displayFile(id).then((result) => {

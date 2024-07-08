@@ -8,7 +8,7 @@ export interface AudioDisplayProps {
 
 export const AudioDisplay = ({ id }: AudioDisplayProps) => {
 
-    const [file, setFile] = useState();
+    const [_, setFile] = useState();
 
     useEffect(() => {
         displayFile(id).then((result) => {

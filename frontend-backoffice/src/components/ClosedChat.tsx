@@ -5,6 +5,7 @@ import { IMessage } from "../interfaces/IMessage";
 import { IMessagesPaginationData } from "../interfaces/IPagination";
 import { IConversationList } from "../interfaces/IConversation";
 import { LikertIcon } from "./LikertIcon";
+import { LikertScale } from "./LikertScale";
 // import FileDisplay from "./FileDisplay";
 // import AudioDisplay from "./AudioDisplay";
 // import { ImageDisplay } from "./ImageDisplay";
@@ -210,19 +211,19 @@ export function ClosedChat({ conversation }: ConversationProps) {
                       return (<Typography variant='body1'>{message.content}</Typography>)
                       break;
                     case 'file':
-                      if (message.file)
+                      // if (message.file)
                         // return (<FileDisplay id={message.file.id}></FileDisplay>)
                         break;
                     case 'audio':
-                      if (message.file)
+                      // if (message.file)
                         // return (<AudioDisplay id={message.file.id}></AudioDisplay>)
                         break;
                     case 'image':
-                      if (message.file)
+                      // if (message.file)
                         // return (<ImageDisplay id={message.file.id}></ImageDisplay>)
                         break;
                     case 'rate':
-                      // return (<Likert></Likert>)
+                      return (<LikertScale conversation={conversation} message={message}/>)
 
                       break;
                   }

@@ -7,7 +7,7 @@ export interface ImageDisplayProps{
 }
 
 export const ImageDisplay = ({ id }: ImageDisplayProps) => {
-    const [file, setFile] = useState();
+    const [_, setFile] = useState();
 
     useEffect(() => {
         displayFile(id).then((result) => {

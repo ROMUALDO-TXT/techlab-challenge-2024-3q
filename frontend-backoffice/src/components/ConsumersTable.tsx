@@ -16,7 +16,7 @@ interface IConsumersTableProps {
 export const ConsumersTable = ({ consumers, limit, setLimit, page, setPage }: IConsumersTableProps) => {
     const [cookies] = useCookies(['techlab-backoffice-user']);
     
-    const handleChangePage = (event: unknown, newPage: number) => {
+    const handleChangePage = (_: unknown, newPage: number) => {
         setPage(newPage);
     };
 

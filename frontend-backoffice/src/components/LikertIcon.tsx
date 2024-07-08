@@ -1,16 +1,18 @@
 import { Typography, Box } from '@mui/material';
-import SentimentVeryDissatisfiedIcon from '@mui/icons-material/SentimentVeryDissatisfied';
-import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
-import SentimentNeutralIcon from '@mui/icons-material/SentimentNeutral';
-import SentimentSatisfiedIcon from '@mui/icons-material/SentimentSatisfied';
-import SentimentVerySatisfiedIcon from '@mui/icons-material/SentimentVerySatisfied';
+import {
+    SentimentVeryDissatisfied as SentimentVeryDissatisfiedIcon,
+    SentimentDissatisfied as SentimentDissatisfiedIcon,
+    SentimentNeutral as SentimentNeutralIcon,
+    SentimentSatisfied as SentimentSatisfiedIcon,
+    SentimentVerySatisfied as SentimentVerySatisfiedIcon,
+} from '@mui/icons-material';
 
 const icons = [
-    <SentimentVeryDissatisfiedIcon sx={{ fontSize: 32, margin: 0 }} />,
-    <SentimentDissatisfiedIcon sx={{ fontSize: 32, margin: 0 }} />,
-    <SentimentNeutralIcon sx={{ fontSize: 32, margin: 0 }} />,
-    <SentimentSatisfiedIcon sx={{ fontSize: 32, margin: 0 }} />,
-    <SentimentVerySatisfiedIcon sx={{ fontSize: 32, margin: 0 }} />,
+    <SentimentVeryDissatisfiedIcon sx={{ fontSize: 32 }} />,
+    <SentimentDissatisfiedIcon sx={{ fontSize: 32 }} />,
+    <SentimentNeutralIcon sx={{ fontSize: 32 }} />,
+    <SentimentSatisfiedIcon sx={{ fontSize: 32 }} />,
+    <SentimentVerySatisfiedIcon sx={{ fontSize: 32 }} />,
 ];
 
 const text = [
@@ -30,11 +32,11 @@ const colors = [
 ];
 
 interface LikertIconProps {
-    value: number | undefined; // Value from 1 to 5
+    value?: number; // Value from 1 to 5 or undefined
 }
 
 export function LikertIcon({ value }: LikertIconProps) {
-    if (!value) {
+    if (value === undefined) {
         return (
             <Box sx={{
                 display: 'flex',
@@ -46,12 +48,24 @@ export function LikertIcon({ value }: LikertIconProps) {
                 <Typography margin="0">Não avaliado</Typography>
             </Box>
         );
-
-    } else if (value < 1 || value > 5) {
-        throw new Error('Value must be between 1 and 5');
     }
 
-    const index = value - 1; 
+    if (value < 1 || value > 5) {
+        // Handle out-of-range values gracefully, maybe display a default state
+        return (
+            <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                color: 'grey',
+            }}>
+                <SentimentNeutralIcon sx={{ fontSize: 32 }} />
+                <Typography margin="0">Valor inválido</Typography>
+            </Box>
+        );
+    }
+
+    const index = value - 1;
 
     return (
         <Box sx={{

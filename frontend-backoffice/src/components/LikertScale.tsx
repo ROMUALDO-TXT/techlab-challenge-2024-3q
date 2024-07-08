@@ -5,8 +5,8 @@ import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied
 import SentimentNeutralIcon from '@mui/icons-material/SentimentNeutral';
 import SentimentSatisfiedIcon from '@mui/icons-material/SentimentSatisfied';
 import SentimentVerySatisfiedIcon from '@mui/icons-material/SentimentVerySatisfied';
-import { rateConversation } from '../services/api';
 import { IConversationList } from '../interfaces/IConversation';
+import { IMessage } from '../interfaces/IMessage';
 
 const icons = [
     <SentimentVeryDissatisfiedIcon sx={{ fontSize: 40 }} />,
@@ -16,6 +16,15 @@ const icons = [
     <SentimentVerySatisfiedIcon sx={{ fontSize: 40 }} />,
 ];
 
+const text = [
+    "Muito Insatisfeito",
+    "Insatisfeito",
+    "Regular",
+    "Satisfeito",
+    "Muito Satisfeito",
+];
+
+
 const colors = [
     'red',
     'orange',
@@ -24,30 +33,27 @@ const colors = [
     'green',
 ];
 interface LikertProps {
-    conversation: IConversationList | undefined;
+    conversation: IConversationList;
+    message: IMessage
 }
 
-export function LikertScale({ conversation }: LikertProps) {
+export function LikertScale({ conversation, message }: LikertProps) {
     const [value, setValue] = useState('');
     const [answered, setAnswered] = useState(false);
 
     useEffect(() => {
-        if (conversation?.rate) {
-            setValue((conversation.rate - 1).toString())
+        if (conversation.rate) {
+            setValue((conversation.rate -1).toString())
             setAnswered(true);
         }
     }, [conversation])
 
-    const handleChange = (e: any) => {
-        if (!answered)
-            setValue(e.target.value);
+    const handleChange = (_: any) => {
+        console.log('not allowed')
     };
 
     const handleSubmit = (e: any) => {
         e.preventDefault();
-        console.log(`Selected value: ${value}`);
-        if (!answered && conversation)
-            rateConversation(Number(value), conversation.id)
     };
 
     return (
@@ -58,22 +64,24 @@ export function LikertScale({ conversation }: LikertProps) {
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: '16px',
+                width: '100%',
                 justifyContent: 'center',
             }}>
-                <Typography variant="subtitle1">Como avalia este atendimento?</Typography>
+                <Typography variant="subtitle1">{message.content}</Typography>
                 <RadioGroup
                     value={value}
                     onChange={handleChange}
                     sx={{
                         display: 'flex',
                         flexDirection: 'row',
-
+                        width: '100%',
+                        justifyContent: 'center'
                     }}
                 >
                     {icons.map((icon, index) => (
                         <FormControlLabel
                             key={`likert-${index}`}
-                            value={index.toString()}
+                            value={index}
                             control={
                                 <Radio
                                     icon={icon}
@@ -82,18 +90,24 @@ export function LikertScale({ conversation }: LikertProps) {
                                 />
                             }
                             sx={{
-                                margin: "auto 2px"
+                                fontSize: '10px',
                             }}
                             labelPlacement="bottom"
-                            label={undefined}
+                            label={
+                                <Typography sx={{ fontSize: 12}}>
+                                    {text[index]}
+                                </Typography>
+                            }
                         />
                     ))}
                 </RadioGroup>
                 {!answered ? (
-                    <Button type="submit" variant="contained" color="primary">
+                    <Button disabled type="submit" variant="contained" color="primary">
                         Enviar
                     </Button>
-                ) : null}
+                ) : (
+                    <Typography variant="subtitle1">Obrigado por avaliar!</Typography>
+                )}
             </Box>
         </form >
     );
