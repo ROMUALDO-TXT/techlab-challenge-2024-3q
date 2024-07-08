@@ -8,6 +8,8 @@ RUN yarn install
 
 VOLUME ./backend/src:/app/backend/src
 
-ENTRYPOINT yarn workspace techlab-challenge-2024-3q-backend start:dev
+RUN cp -r ./backend/src/migrations dist/
+
+CMD ["sh", "-c", "yarn workspace techlab-challenge-2024-3q-backend start:dev"]
 
 

@@ -279,11 +279,9 @@ export class UsersService extends ServiceBaseClass {
       await queryRunner.startTransaction();
 
       try {
-        const updateUser = Object.assign({}, userExists);
+        Object.assign(userExists, updateUserDto);
 
-        Object.assign(updateUser, updateUserDto);
-
-        result = await queryRunner.manager.save(User, updateUser);
+        result = await queryRunner.manager.save(User, userExists);
 
         await queryRunner.commitTransaction();
 
@@ -292,7 +290,7 @@ export class UsersService extends ServiceBaseClass {
             sub: JSON.stringify({
               id: user.id,
               email: user.email,
-              profileId: user.profile,
+              profile: user.profile,
               username: user.username,
             }),
           };
