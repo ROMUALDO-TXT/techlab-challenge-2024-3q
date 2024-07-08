@@ -23,7 +23,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: `${process.cwd()}/.env.${process.env.NODE_ENV}`,
+      envFilePath: `${process.cwd()}/.env`,
       isGlobal: true,
     }),
     TypeOrmModule.forRoot({

@@ -2,7 +2,7 @@ import { Inject, Injectable, Post, UnauthorizedException } from '@nestjs/common'
 import { LoginDto } from './dto/login.dto';
 import { jwtPayload } from './interfaces/jwt-payload.interface';
 import { JwtService } from '@nestjs/jwt';
-import { compare } from 'bcrypt';
+import { compare } from 'bcryptjs';
 import { DataSource } from 'typeorm';
 import { User } from 'src/domain/entities/User';
 import { Profiles } from 'src/domain/constants/profiles';

@@ -5,7 +5,7 @@ import { ServiceBaseClass } from 'src/domain/helpers/service.class';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { DataSource, UpdateResult } from 'typeorm';
 import { Logger } from 'winston';
-import { hash } from 'bcrypt';
+import { hash } from 'bcryptjs';
 import { User } from 'src/domain/entities/User';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
 import { JwtService } from '@nestjs/jwt';
