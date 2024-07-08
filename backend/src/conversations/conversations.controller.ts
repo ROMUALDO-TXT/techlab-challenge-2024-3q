@@ -170,8 +170,8 @@ export class ConversationsController {
     return response.status(res.status).send(res);
   }
 
-  @Public()
   @Get(':id')
+  @ProfilesAllowed('consumer', 'standard', 'sudo')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     description: 'Registro encontrado'
@@ -190,7 +190,7 @@ export class ConversationsController {
     return response.status(res.status).send(res);
   }
 
-  @Public()
+  @ProfilesAllowed('consumer', 'standard', 'sudo')
   @Get('messages/:id')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
@@ -215,7 +215,7 @@ export class ConversationsController {
   }
 
 
-  @Public()
+  @ProfilesAllowed('sudo')
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({

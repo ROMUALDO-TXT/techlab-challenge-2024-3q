@@ -40,8 +40,8 @@ import { ScheduleModule } from '@nestjs/schedule';
         ConversationMessage,
         ConversationFile,
       ],
-      logging: false,
-      synchronize: true,
+      logging: true,
+      synchronize: false,
     }),
     WinstonModule.forRoot({
       format: format.combine(format.timestamp(), format.prettyPrint()),

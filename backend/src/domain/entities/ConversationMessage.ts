@@ -23,6 +23,7 @@ export class ConversationMessage {
 
   //message type;
   @Column({
+    enum:['text', 'likert', 'file', 'image', 'audio'],
     default: 'text'
   })
   type: string

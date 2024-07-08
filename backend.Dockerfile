@@ -8,4 +8,6 @@ RUN yarn install
 
 VOLUME ./backend/src:/app/backend/src
 
-ENTRYPOINT yarn workspace techlab-challenge-2024-3q-backend dev
+ENTRYPOINT yarn workspace techlab-challenge-2024-3q-backend start:dev
+
+

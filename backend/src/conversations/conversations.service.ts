@@ -184,21 +184,21 @@ export class ConversationsService extends ServiceBaseClass {
 
         openConversations.forEach((c) => {
           users = users.filter(user => user.openConversationsCount < 3);
-          
+
           if (users.length > 0) {
             users.sort((a, b) => a.openConversationsCount - b.openConversationsCount);
             users[0].openConversationsCount++;
-            
+
             Object.assign(c, {
               startedAt: new Date(),
-              status: 'open',              
+              status: 'open',
             })
 
             const assignPromises = this.assignConversationUser(queryRunner, {
               userId: users[0].userId,
               username: users[0].username,
               conversation: c
-            }) 
+            })
 
             promises.push(assignPromises)
           }
@@ -240,7 +240,7 @@ export class ConversationsService extends ServiceBaseClass {
 
   private assignConversationUser(queryRunner: QueryRunner, { conversation, userId, username }: IAssignConversation) {
     const upadatePromise = queryRunner.manager.save(Conversation, {
-      user:{
+      user: {
         id: userId,
       },
       ...conversation
@@ -258,6 +258,10 @@ export class ConversationsService extends ServiceBaseClass {
   async finishConversation(finishConversationDto: FinishConversationDto) {
     try {
       const conversationExists = await this.dataSource.manager.findOne(Conversation, {
+        relations:{
+          user: true,
+          consumer: true,
+        },
         where: {
           id: finishConversationDto.conversationId
         }
@@ -265,21 +269,45 @@ export class ConversationsService extends ServiceBaseClass {
 
       if (!conversationExists) throw new NotFoundException("Conversation not found");
 
-      const result = await this.dataSource.manager.update(Conversation, {
-        id: conversationExists.id
-      }, {
-        closingReason: finishConversationDto.closingReason,
-        finishedAt: new Date(),
-        status: 'closed',
-      });
+      let result: Conversation;
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.startTransaction();
+      try {
 
-      if (result.affected > 0) {
+        Object.assign(conversationExists, {
+          closingReason: finishConversationDto.closingReason,
+          finishedAt: new Date(),
+          status: 'closed',
+        })
+
+        result = await queryRunner.manager.save(Conversation, conversationExists)
+
+        if (finishConversationDto.closingReason == 'concluded') {
+          const message = await queryRunner.manager.save(ConversationMessage,
+            queryRunner.manager.create(ConversationMessage, {
+              conversation: conversationExists,
+              content: `Como você se sente sobre o atendimento do agente ${conversationExists.user.username}?`,
+              by: 'system' as ConversationMessageBy,
+              type: 'rate'
+            })
+          )
+          await queryRunner.manager.save(ConversationMessage, message);
+        }
+
+        await queryRunner.commitTransaction();
+      } catch (err) {
+        console.log(err)
+        await queryRunner.rollbackTransaction();
+      } finally {
+        await queryRunner.release();
+      }
+      if (result) {
         this.logger.log("info", `[UPDATED - ${this.constructor.name} | ${this.getFunctionName()}]: ${JSON.stringify(result)}`);
       }
 
       return {
         status: 200,
-        data: result,
+        data: 'success',
       };
 
     } catch (error) {
@@ -301,6 +329,7 @@ export class ConversationsService extends ServiceBaseClass {
       };
     }
   }
+
 
   async rateConversation(rateConversationDto: RateConversationDto) {
     try {

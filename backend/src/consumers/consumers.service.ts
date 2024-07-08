@@ -6,7 +6,7 @@ import { DataSource, UpdateResult } from 'typeorm';
 import { Logger } from 'winston';
 import { ServiceBaseClass } from 'src/domain/helpers/service.class';
 import { User } from 'src/domain/entities/User';
-import { hash } from 'bcrypt';
+import { hash } from 'bcryptjs';
 import { Consumer } from 'src/domain/entities/Consumer';
 import { JwtService } from '@nestjs/jwt';
 import { RequestWithUser } from 'src/auth/interfaces/user-request.interface';
